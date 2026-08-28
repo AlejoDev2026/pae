@@ -1,0 +1,1 @@
+[15-Jun-2026 18:43:19 America/Bogota] PHP Warning:  mysqli::__construct(): (28000/1045): Access denied for user 'accionpo_pae'@'localhost' (using password: YES) in /home/accionpo/app.accionporcolombia.com/servicesPae/Inventario/Productos/InventarioProductosGuardar.php on line 76

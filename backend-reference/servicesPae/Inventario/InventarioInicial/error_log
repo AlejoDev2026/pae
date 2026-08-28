@@ -1,0 +1,4 @@
+[26-Jul-2026 16:18:39 America/Bogota] [InventarioInicial] Call to undefined method mysqli_stmt::get_result()
+[26-Jul-2026 16:18:39 America/Bogota] [InventarioInicial] Call to undefined method mysqli_stmt::get_result()
+[26-Jul-2026 18:25:40 America/Bogota] [InventarioInicial] El producto ARROZ / B X 500 G ya tiene existencia en la bodega.
+[26-Jul-2026 18:25:59 America/Bogota] [InventarioInicial] El producto ARROZ / B X 500 G ya tiene existencia en la bodega.

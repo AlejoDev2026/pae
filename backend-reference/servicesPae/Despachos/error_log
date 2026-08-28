@@ -1,0 +1,32 @@
+[30-Mar-2026 07:13:42 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php:140
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php on line 140
+[30-Mar-2026 07:13:42 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php:140
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php on line 140
+[30-Mar-2026 07:21:02 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php:140
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php on line 140
+[30-Mar-2026 07:21:02 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php:140
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php on line 140
+[30-Mar-2026 07:25:02 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php:140
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php on line 140
+[30-Mar-2026 07:25:02 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php:140
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetAll.php on line 140
+[30-Mar-2026 07:30:28 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetDetalle.php:115
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetDetalle.php on line 115
+[30-Mar-2026 07:30:28 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetDetalle.php:115
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/Despachos/DespachosGetDetalle.php on line 115

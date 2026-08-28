@@ -1,0 +1,84 @@
+[11-Oct-2025 11:53:54 America/Bogota] PHP Warning:  Undefined variable $rol in /home4/acbeedam/app.gruponava.com.co/services/usuarios/usuarios.php on line 187
+[14-Oct-2025 08:52:44 America/Bogota] PHP Warning:  Undefined variable $rol in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 62
+[14-Oct-2025 08:52:45 America/Bogota] PHP Warning:  Undefined variable $rol in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 62
+[14-Oct-2025 08:53:23 America/Bogota] PHP Warning:  Undefined variable $rol in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 62
+[14-Oct-2025 08:53:51 America/Bogota] PHP Warning:  Undefined variable $rol in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 62
+[14-Oct-2025 11:21:26 America/Bogota] PHP Warning:  Undefined variable $conexionMysql in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 130
+[14-Oct-2025 11:21:26 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php:130
+Stack trace:
+#0 {main}
+  thrown in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 130
+[14-Oct-2025 11:21:38 America/Bogota] PHP Warning:  Undefined variable $conexionMysql in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 130
+[14-Oct-2025 11:21:38 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php:130
+Stack trace:
+#0 {main}
+  thrown in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 130
+[14-Oct-2025 11:22:26 America/Bogota] PHP Warning:  Undefined variable $conexionMysql in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 130
+[14-Oct-2025 11:22:26 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php:130
+Stack trace:
+#0 {main}
+  thrown in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 130
+[14-Oct-2025 11:22:32 America/Bogota] PHP Warning:  Undefined variable $conexionMysql in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 130
+[14-Oct-2025 11:22:32 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function prepare() on null in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php:130
+Stack trace:
+#0 {main}
+  thrown in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 130
+[14-Oct-2025 11:22:59 America/Bogota] PHP Fatal error:  Uncaught Error: mysqli_stmt::bind_param(): Argument #8 could not be passed by reference in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php:148
+Stack trace:
+#0 {main}
+  thrown in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 148
+[14-Oct-2025 11:26:03 America/Bogota] PHP Fatal error:  Uncaught Error: Object of class mysqli_stmt could not be converted to string in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php:134
+Stack trace:
+#0 {main}
+  thrown in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 134
+[14-Oct-2025 11:59:20 America/Bogota] PHP Warning:  Undefined variable $result in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 122
+[14-Oct-2025 11:59:30 America/Bogota] PHP Warning:  Undefined variable $result in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 122
+[18-Oct-2025 11:20:44 America/Bogota] PHP Warning:  Undefined variable $documento in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 119
+[18-Oct-2025 11:20:44 America/Bogota] PHP Fatal error:  Uncaught ArgumentCountError: The number of elements in the type definition string must match the number of bind variables in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php:151
+Stack trace:
+#0 /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php(151): mysqli_stmt->bind_param('sssssssss', 'Miguel Angel Lu...', '3216549871', 'prueba@gmail.co...', '1', '$2b$10$nRfLzyml...', '0', '0', '2')
+#1 {main}
+  thrown in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 151
+[18-Oct-2025 11:21:28 America/Bogota] PHP Warning:  Undefined variable $documento in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 119
+[18-Oct-2025 11:21:28 America/Bogota] PHP Fatal error:  Uncaught ArgumentCountError: The number of elements in the type definition string must match the number of bind variables in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php:151
+Stack trace:
+#0 /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php(151): mysqli_stmt->bind_param('sssssssss', 'Miguel Angel Lu...', '3216549871', 'miguel@gmail.co...', '1', '$2b$10$bOq6fk/n...', '0', '0', '2')
+#1 {main}
+  thrown in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 151
+[18-Oct-2025 11:21:54 America/Bogota] PHP Fatal error:  Uncaught ArgumentCountError: The number of elements in the type definition string must match the number of bind variables in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php:151
+Stack trace:
+#0 /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php(151): mysqli_stmt->bind_param('sssssssss', 'Miguel Angel Lu...', '3216549871', 'miguel@gmail.co...', '1', '$2b$10$uNEEBjbj...', '0', '0', '2')
+#1 {main}
+  thrown in /home4/acbeedam/app.gruponava.com.co/services/usuarios/detalleUsuarios.php on line 151
+[24-Oct-2025 14:07:23 America/Bogota] PHP Warning:  Undefined array key "id" in /home4/acbeedam/app.gruponava.com.co/services/usuarios/usuarios.php on line 317
+[24-Oct-2025 14:07:23 America/Bogota] PHP Warning:  Undefined array key "nombre" in /home4/acbeedam/app.gruponava.com.co/services/usuarios/usuarios.php on line 318
+[24-Oct-2025 14:07:23 America/Bogota] PHP Warning:  Undefined array key "correo" in /home4/acbeedam/app.gruponava.com.co/services/usuarios/usuarios.php on line 319
+[24-Oct-2025 14:07:23 America/Bogota] PHP Warning:  Undefined array key "telefono" in /home4/acbeedam/app.gruponava.com.co/services/usuarios/usuarios.php on line 320
+[24-Oct-2025 14:07:32 America/Bogota] PHP Warning:  Undefined array key "id" in /home4/acbeedam/app.gruponava.com.co/services/usuarios/usuarios.php on line 317
+[24-Oct-2025 14:07:32 America/Bogota] PHP Warning:  Undefined array key "nombre" in /home4/acbeedam/app.gruponava.com.co/services/usuarios/usuarios.php on line 318
+[24-Oct-2025 14:07:32 America/Bogota] PHP Warning:  Undefined array key "correo" in /home4/acbeedam/app.gruponava.com.co/services/usuarios/usuarios.php on line 319
+[24-Oct-2025 14:07:32 America/Bogota] PHP Warning:  Undefined array key "telefono" in /home4/acbeedam/app.gruponava.com.co/services/usuarios/usuarios.php on line 320
+[30-Mar-2026 07:09:05 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/usuarios.php:134
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/usuarios.php on line 134
+[30-Mar-2026 07:09:05 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/usuarios.php:134
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/usuarios.php on line 134
+[30-Mar-2026 07:13:49 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/detalleUsuarios.php:76
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/detalleUsuarios.php on line 76
+[30-Mar-2026 07:13:49 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/detalleUsuarios.php:76
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/detalleUsuarios.php on line 76
+[30-Mar-2026 07:14:28 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/detalleUsuarios.php:76
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/detalleUsuarios.php on line 76
+[30-Mar-2026 07:14:28 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/detalleUsuarios.php:76
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/usuarios/detalleUsuarios.php on line 76

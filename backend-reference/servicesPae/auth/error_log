@@ -1,0 +1,61 @@
+[27-Mar-2026 15:35:43 America/Bogota] PHP Warning:  mysqli::__construct(): (42000/1044): Access denied for user 'accionpo_pae'@'localhost' to database 'accionpo_pae' in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 48
+[27-Mar-2026 15:35:56 America/Bogota] PHP Warning:  mysqli::__construct(): (42000/1044): Access denied for user 'accionpo_pae'@'localhost' to database 'accionpo_pae' in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 48
+[27-Mar-2026 15:37:18 America/Bogota] PHP Warning:  mysqli::__construct(): (42000/1044): Access denied for user 'accionpo_pae'@'localhost' to database 'accionpo_pae' in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 48
+[27-Mar-2026 15:37:44 America/Bogota] PHP Warning:  mysqli::__construct(): (42000/1044): Access denied for user 'accionpo_pae'@'localhost' to database 'accionpo_pae' in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 48
+[27-Mar-2026 15:38:21 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function bind_param() on boolean in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 101
+[27-Mar-2026 15:38:26 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function bind_param() on boolean in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 101
+[27-Mar-2026 15:38:43 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function bind_param() on boolean in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 101
+[27-Mar-2026 15:38:56 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function bind_param() on boolean in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 101
+[27-Mar-2026 15:40:06 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function bind_param() on boolean in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 101
+[27-Mar-2026 15:40:10 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function bind_param() on boolean in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 101
+[27-Mar-2026 15:41:18 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function bind_param() on boolean in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 101
+[27-Mar-2026 15:43:35 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function bind_param() on boolean in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 101
+[27-Mar-2026 15:45:55 America/Bogota] PHP Fatal error:  Uncaught Error: Call to a member function bind_param() on boolean in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:101
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 101
+[27-Mar-2026 15:59:33 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:125
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 125
+[30-Mar-2026 06:48:41 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:125
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 125
+[30-Mar-2026 06:49:30 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:125
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 125
+[30-Mar-2026 06:49:30 America/Bogota] PHP Fatal error:  Uncaught Error: Call to undefined method mysqli_stmt::get_result() in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php:125
+Stack trace:
+#0 {main}
+  thrown in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 125
+[30-Mar-2026 07:03:02 America/Bogota] PHP Warning:  mysqli_stmt::bind_result(): Number of bind variables doesn't match number of fields in prepared statement in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 154
+[30-Mar-2026 07:04:30 America/Bogota] PHP Warning:  mysqli_stmt::bind_param(): Number of variables doesn't match number of parameters in prepared statement in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 216
+[30-Mar-2026 07:05:20 America/Bogota] PHP Warning:  mysqli_stmt::bind_param(): Number of elements in type definition string doesn't match number of bind variables in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 216
+[18-Jun-2026 18:19:33 America/Bogota] PHP Warning:  mysqli::__construct(): (HY000/2002): Can't connect to local server through socket '/var/lib/mysql/mysql.sock' (2) in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 46
+[18-Jun-2026 18:19:33 America/Bogota] PHP Warning:  mysqli::set_charset(): Couldn't fetch mysqli in /home/accionpo/app.accionporcolombia.com/servicesPae/auth/autenticacion.php on line 47
