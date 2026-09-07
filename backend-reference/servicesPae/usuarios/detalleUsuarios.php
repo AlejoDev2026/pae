@@ -45,20 +45,19 @@ if ($conexion->connect_error) {
     exit;
 }
 
+require_once __DIR__ . '/../auth/permisos.php';
+exigirPermiso($conexion, 'usuarios.administrar');
+
 // 1. Obtener roles
 // 2. Crear usuario
 
 switch ($case) {
     case 1:
         try {
-            $sql = "SELECT
-                        id,
-                        parametro,
-                        color,
-                        tipoParametro
-                    FROM parametros
-                    WHERE tipoParametro = 1
-                    ORDER BY parametro ASC";
+            $sql = "SELECT id, nombre, color, 1 AS tipoParametro
+                    FROM Roles
+                    WHERE estado = 1
+                    ORDER BY nombre ASC";
 
             $stmt = $conexion->prepare($sql);
 
@@ -128,14 +127,48 @@ switch ($case) {
             $telefono = trim($_POST["telefono"] ?? "");
             $correo = trim($_POST["correo"] ?? "");
             $rol = isset($_POST["rol"]) ? (int) $_POST["rol"] : 0;
-            $pass = $_POST["pass"] ?? "";
-            $estado = 2;
+            // El servidor protege la contraseña una sola vez. El alias "pass"
+            // se conserva temporalmente por compatibilidad con clientes antiguos.
+            $pass = (string) ($_POST["contrasena"] ?? $_POST["pass"] ?? "");
+            // Estados de usuarios: 1 = activo, 2 = suspendido.
+            // Todo usuario nuevo debe poder autenticarse inmediatamente.
+            $estado = 1;
 
             if ($nombre === "" || $telefono === "" || $correo === "" || $rol <= 0 || $pass === "") {
                 echo json_encode([
                     "rpta" => "no",
                     "mensaje" => "Faltan datos requeridos",
                     "error" => "Empty fields"
+                ]);
+                break;
+            }
+
+            if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+                echo json_encode([
+                    "rpta" => "no",
+                    "mensaje" => "El correo electrónico no es válido",
+                    "error" => "Invalid email"
+                ]);
+                break;
+            }
+
+            $stmtRol = $conexion->prepare("SELECT id FROM Roles WHERE id = ? AND estado = 1 LIMIT 1");
+            if (!$stmtRol) throw new RuntimeException("No fue posible validar el rol seleccionado");
+            $stmtRol->bind_param("i", $rol);
+            $stmtRol->execute();
+            $stmtRol->store_result();
+            if ($stmtRol->num_rows <= 0) {
+                $stmtRol->close();
+                echo json_encode(["rpta" => "no", "mensaje" => "El rol seleccionado no está disponible", "error" => "Invalid role"]);
+                break;
+            }
+            $stmtRol->close();
+
+            if (strlen($pass) < 8 || strlen($pass) > 72) {
+                echo json_encode([
+                    "rpta" => "no",
+                    "mensaje" => "La contraseña debe tener entre 8 y 72 caracteres",
+                    "error" => "Invalid password length"
                 ]);
                 break;
             }

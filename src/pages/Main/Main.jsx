@@ -8,6 +8,7 @@ import { Usuarios } from "../Usuarios/Usuarios";
 import { DetalleUsuarios } from "../Usuarios/DetalleUsuarios";
 
 import { API_BASE } from "../../constants";
+import { primeraPaginaPermitida, puedeAbrirPagina } from "../../utils/permisos";
 
 import { DashboardGeneral } from "../Dashboard/DashboardGeneral";
 
@@ -85,14 +86,13 @@ import { InventarioInicial } from "../Inventarios/InventarioInicial/InventarioIn
 export const Main = () => {
     const navigate = useNavigate();
 
-    const usuario = JSON.parse(localStorage.getItem("us"));
+    const usuarioGuardado = JSON.parse(localStorage.getItem("us"));
+    const [usuario, setUsuario] = useState(usuarioGuardado);
 
     const [session, setSession] = useState(false);
     const [sidebar, setSidebar] = useState(false);
 
-    const [pagina, setPagina] = useState(
-        usuario?.rol === 1 ? "DashboardGeneral" : usuario?.rol === 6 ? "Perfil" : "DashboardGeneral"
-    );
+    const [pagina, setPagina] = useState(() => primeraPaginaPermitida(usuarioGuardado));
 
     const validarSesion = async () => {
         if (!localStorage.getItem("us")) {
@@ -115,6 +115,13 @@ export const Main = () => {
             const response = await res.json();
 
             if (response.rpta === "si") {
+                if (response.usuario) {
+                    localStorage.setItem("us", JSON.stringify(response.usuario));
+                    setUsuario(response.usuario);
+                    if (!puedeAbrirPagina(response.usuario, pagina)) {
+                        setPagina(primeraPaginaPermitida(response.usuario));
+                    }
+                }
                 setSession(true);
             } else {
                 setSession(false);
@@ -134,15 +141,22 @@ export const Main = () => {
     };
 
     useEffect(() => {
+        // La sesión se sincroniza con el servidor al montar y luego mediante el intervalo.
         validarSesion();
 
         const timer = setInterval(validarSesion, 5000);
 
         return () => clearInterval(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const navegar = (nuevaPagina) => {
         if (!nuevaPagina || nuevaPagina === false) return;
+
+        if (!puedeAbrirPagina(usuario, nuevaPagina)) {
+            toast.warning("No tienes permisos para acceder a esta opción.");
+            return;
+        }
 
         window.history.pushState({ pagina: nuevaPagina }, "", `#${nuevaPagina}`);
         setPagina(nuevaPagina);
@@ -151,7 +165,8 @@ export const Main = () => {
     useEffect(() => {
         const hashInicial = window.location.hash.replace("#", "");
 
-        if (hashInicial) {
+        if (hashInicial && puedeAbrirPagina(usuarioGuardado, hashInicial)) {
+            // El hash inicial es una fuente externa que debe reflejarse en la navegación interna.
             setPagina(hashInicial);
             window.history.replaceState({ pagina: hashInicial }, "", `#${hashInicial}`);
         } else if (pagina && pagina !== false) {
@@ -159,7 +174,7 @@ export const Main = () => {
         }
 
         const onPopState = (event) => {
-            if (event.state && event.state.pagina) {
+            if (event.state && event.state.pagina && puedeAbrirPagina(usuarioGuardado, event.state.pagina)) {
                 setPagina(event.state.pagina);
             }
         };
@@ -167,6 +182,7 @@ export const Main = () => {
         window.addEventListener("popstate", onPopState);
 
         return () => window.removeEventListener("popstate", onPopState);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (

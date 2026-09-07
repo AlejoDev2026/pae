@@ -89,9 +89,10 @@ switch ($case) {
                     u.contrasena,
                     u.estado,
                     u.tokenSesion,
-                    r.parametro AS rolNombre
+                    r.nombre AS rolNombre,
+                    r.esAdministrador
                 FROM usuarios u
-                INNER JOIN parametros r
+                INNER JOIN Roles r
                     ON u.rol = r.id
                 WHERE u.correo = ?
                 LIMIT 1";
@@ -141,7 +142,8 @@ switch ($case) {
                 $contrasenaDB,
                 $estado,
                 $tokenSesionDB,
-                $rolNombre
+                $rolNombre,
+                $esAdministrador
             );
 
             if (!$stmtUsuario->fetch()) {
@@ -206,6 +208,17 @@ switch ($case) {
 
             $stmtUpdate->close();
 
+            $permisos = [];
+            $stmtPermisos = $conexion->prepare("SELECT p.codigo FROM RolesPermisos rp INNER JOIN Permisos p ON p.id = rp.idPermiso AND p.estado = 1 WHERE rp.idRol = ? ORDER BY p.codigo");
+            if ($stmtPermisos) {
+                $stmtPermisos->bind_param("i", $rol);
+                if ($stmtPermisos->execute()) {
+                    $stmtPermisos->bind_result($codigoPermiso);
+                    while ($stmtPermisos->fetch()) $permisos[] = $codigoPermiso;
+                }
+                $stmtPermisos->close();
+            }
+
             echo json_encode([
                 "rpta" => "si",
                 "mensaje" => "Inicio de sesión exitoso",
@@ -215,7 +228,9 @@ switch ($case) {
                     "telefono" => $telefono,
                     "correo" => $correoDB,
                     "rol" => $rol,
-                    "rolNombre" => $rolNombre
+                    "rolNombre" => $rolNombre,
+                    "esAdministrador" => (int)$esAdministrador === 1,
+                    "permisos" => $permisos
                 ],
                 "token" => $token
             ]);
@@ -243,10 +258,12 @@ switch ($case) {
                 break;
             }
 
-            $sqlUsuario = "SELECT id
-                FROM usuarios
-                WHERE correo = ?
-                  AND tokenSesion = ?
+            $sqlUsuario = "SELECT u.id, u.nombre, u.telefono, u.correo, u.rol, r.nombre, r.esAdministrador
+                FROM usuarios u
+                INNER JOIN Roles r ON r.id = u.rol AND r.estado = 1
+                WHERE u.correo = ?
+                  AND u.tokenSesion = ?
+                  AND u.estado = 1
                 LIMIT 1";
 
             $stmtUsuario = $conexion->prepare($sqlUsuario);
@@ -273,9 +290,9 @@ switch ($case) {
                 break;
             }
 
-            $stmtUsuario->store_result();
+            $stmtUsuario->bind_result($id, $nombre, $telefono, $correoDB, $rol, $rolNombre, $esAdministrador);
 
-            if ($stmtUsuario->num_rows <= 0) {
+            if (!$stmtUsuario->fetch()) {
                 echo json_encode([
                     "rpta" => "no",
                     "mensaje" => "Token de sesión inválido",
@@ -287,8 +304,29 @@ switch ($case) {
 
             $stmtUsuario->close();
 
+            $permisos = [];
+            $stmtPermisos = $conexion->prepare("SELECT p.codigo FROM RolesPermisos rp INNER JOIN Permisos p ON p.id = rp.idPermiso AND p.estado = 1 WHERE rp.idRol = ? ORDER BY p.codigo");
+            if ($stmtPermisos) {
+                $stmtPermisos->bind_param("i", $rol);
+                if ($stmtPermisos->execute()) {
+                    $stmtPermisos->bind_result($codigoPermiso);
+                    while ($stmtPermisos->fetch()) $permisos[] = $codigoPermiso;
+                }
+                $stmtPermisos->close();
+            }
+
             echo json_encode([
                 "rpta" => "si",
+                "usuario" => [
+                    "id" => $id,
+                    "nombre" => $nombre,
+                    "telefono" => $telefono,
+                    "correo" => $correoDB,
+                    "rol" => $rol,
+                    "rolNombre" => $rolNombre,
+                    "esAdministrador" => (int)$esAdministrador === 1,
+                    "permisos" => $permisos
+                ],
                 "mensaje" => "Sesión válida"
             ]);
         } catch (Throwable $e) {

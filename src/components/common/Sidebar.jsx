@@ -20,6 +20,7 @@ import {
 import { IoClose } from "react-icons/io5";
 import { useNavigate } from "react-router";
 import logo from "../../assets/logoPae.png";
+import { puedeAbrirPagina, tienePermiso } from "../../utils/permisos";
 
 export const Sidebar = ({ isOpen, setIsOpen, pagina, navegar }) => {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ export const Sidebar = ({ isOpen, setIsOpen, pagina, navegar }) => {
   });
 
   const usuario = JSON.parse(localStorage.getItem("us"));
-  const esAdministrador = Number(usuario?.rol || 0) === 1;
+  const administraAlistamiento = tienePermiso(usuario, "alistamiento.administrar");
 
   const cerrarMenu = () => setIsOpen(false);
 
@@ -262,7 +263,7 @@ export const Sidebar = ({ isOpen, setIsOpen, pagina, navegar }) => {
                   "DetalleEntradaInventario",
                 ],
               },
-              ...(esAdministrador
+              ...(administraAlistamiento
                 ? [
                   {
                     id: "ordenes-alistamiento-inventario",
@@ -418,7 +419,7 @@ export const Sidebar = ({ isOpen, setIsOpen, pagina, navegar }) => {
         ],
       },
     ],
-    [esAdministrador]
+    [administraAlistamiento]
   );
 
   const renderItem = (item, nivel = 0) => {
@@ -568,7 +569,19 @@ export const Sidebar = ({ isOpen, setIsOpen, pagina, navegar }) => {
     });
   };
 
-  const menu = menuAdmin;
+  const menu = useMemo(() => {
+    const filtrar = (items) => items.reduce((resultado, item) => {
+      if (item.children?.length) {
+        const children = filtrar(item.children);
+        if (children.length) resultado.push({ ...item, children });
+      } else if (puedeAbrirPagina(usuario, item.pagina)) {
+        resultado.push(item);
+      }
+      return resultado;
+    }, []);
+
+    return filtrar(menuAdmin);
+  }, [menuAdmin, usuario]);
 
   return (
     <>

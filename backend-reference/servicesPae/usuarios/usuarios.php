@@ -56,6 +56,9 @@ if ($conexion->connect_error) {
     exit;
 }
 
+require_once __DIR__ . '/../auth/permisos.php';
+exigirPermiso($conexion, 'usuarios.administrar');
+
 // 1. Obtener todos los datos de todos los usuarios, según un rol especificado desde la petición
 // 2. Obtener todos los datos de un usuario, según un ID especificado desde la petición
 // 3. Cambiar el estado de un usuario a activo o suspendido
@@ -73,19 +76,17 @@ switch ($case) {
                         u.telefono,
                         u.correo,
                         u.rol AS idRol,
-                        pa.parametro AS rol,
-                        pa.color AS colorRol,
-                        u.contrasena,
+                        COALESCE(pa.nombre, CONCAT('Rol #', u.rol)) AS rol,
+                        COALESCE(pa.color, '#64748B') AS colorRol,
                         u.estado AS idEstado,
-                        p.parametro AS estado,
-                        p.color AS colorEstado
+                        COALESCE(p.parametro, CASE WHEN u.estado = 1 THEN 'Activo' ELSE 'Suspendido' END) AS estado,
+                        COALESCE(p.color, CASE WHEN u.estado = 1 THEN '#22C55E' ELSE '#EF4444' END) AS colorEstado
                     FROM usuarios u
-                    INNER JOIN parametros p
-                        ON u.estado = p.id
-                    INNER JOIN parametros pa
+                    LEFT JOIN parametros p
+                        ON u.estado = p.id AND p.tipoParametro = 2
+                    LEFT JOIN Roles pa
                         ON u.rol = pa.id
-                    WHERE p.tipoParametro = 2
-                      AND u.rol = ?
+                    WHERE u.rol = ?
                     ORDER BY u.id DESC"
                 : "SELECT
                         u.id,
@@ -93,18 +94,16 @@ switch ($case) {
                         u.telefono,
                         u.correo,
                         u.rol AS idRol,
-                        pa.parametro AS rol,
-                        pa.color AS colorRol,
-                        u.contrasena,
+                        COALESCE(pa.nombre, CONCAT('Rol #', u.rol)) AS rol,
+                        COALESCE(pa.color, '#64748B') AS colorRol,
                         u.estado AS idEstado,
-                        p.parametro AS estado,
-                        p.color AS colorEstado
+                        COALESCE(p.parametro, CASE WHEN u.estado = 1 THEN 'Activo' ELSE 'Suspendido' END) AS estado,
+                        COALESCE(p.color, CASE WHEN u.estado = 1 THEN '#22C55E' ELSE '#EF4444' END) AS colorEstado
                     FROM usuarios u
-                    INNER JOIN parametros p
-                        ON u.estado = p.id
-                    INNER JOIN parametros pa
+                    LEFT JOIN parametros p
+                        ON u.estado = p.id AND p.tipoParametro = 2
+                    LEFT JOIN Roles pa
                         ON u.rol = pa.id
-                    WHERE p.tipoParametro = 2
                     ORDER BY u.id DESC";
 
             $stmt = $conexion->prepare($sql);
@@ -153,7 +152,6 @@ switch ($case) {
                 $idRol,
                 $rolNombre,
                 $colorRol,
-                $contrasena,
                 $idEstado,
                 $estadoNombre,
                 $colorEstado
@@ -170,7 +168,6 @@ switch ($case) {
                     "idRol" => $idRol,
                     "rol" => $rolNombre,
                     "colorRol" => $colorRol,
-                    "contrasena" => $contrasena,
                     "idEstado" => $idEstado,
                     "estado" => $estadoNombre,
                     "colorEstado" => $colorEstado
@@ -212,15 +209,15 @@ switch ($case) {
                     u.telefono,
                     u.correo,
                     u.rol AS idRol,
-                    pa.parametro AS rol,
-                    pa.color AS colorRol,
+                    COALESCE(pa.nombre, CONCAT('Rol #', u.rol)) AS rol,
+                    COALESCE(pa.color, '#64748B') AS colorRol,
                     u.estado AS idEstado,
-                    p.parametro AS estado,
-                    p.color AS colorEstado
+                    COALESCE(p.parametro, CASE WHEN u.estado = 1 THEN 'Activo' ELSE 'Suspendido' END) AS estado,
+                    COALESCE(p.color, CASE WHEN u.estado = 1 THEN '#22C55E' ELSE '#EF4444' END) AS colorEstado
                 FROM usuarios u
-                INNER JOIN parametros p
-                    ON u.estado = p.id
-                INNER JOIN parametros pa
+                LEFT JOIN parametros p
+                    ON u.estado = p.id AND p.tipoParametro = 2
+                    LEFT JOIN Roles pa
                     ON u.rol = pa.id
                 WHERE u.id = ?
                 LIMIT 1";
@@ -360,7 +357,8 @@ switch ($case) {
             $stmt->fetch();
             $stmt->close();
 
-            $nuevoEstado = ((int)$estadoActual === 2) ? 4 : 2;
+            // Estados de usuarios: 1 = activo, 2 = suspendido.
+            $nuevoEstado = ((int)$estadoActual === 1) ? 2 : 1;
 
             $sqlUpdate = "UPDATE usuarios
                 SET estado = ?
@@ -411,8 +409,9 @@ switch ($case) {
             $nombre = trim($_POST["nombre"] ?? "");
             $correo = trim($_POST["correo"] ?? "");
             $telefono = trim($_POST["telefono"] ?? "");
+            $rol = isset($_POST["rol"]) ? (int) $_POST["rol"] : 0;
 
-            if ($id <= 0 || $nombre === "" || $correo === "" || $telefono === "") {
+            if ($id <= 0 || $nombre === "" || $correo === "" || $telefono === "" || $rol <= 0) {
                 echo json_encode([
                     "rpta" => "no",
                     "mensaje" => "Faltan datos requeridos",
@@ -420,6 +419,44 @@ switch ($case) {
                 ]);
                 break;
             }
+
+            if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
+                echo json_encode([
+                    "rpta" => "no",
+                    "mensaje" => "El correo electrÃ³nico no es vÃ¡lido",
+                    "error" => "Invalid email"
+                ]);
+                break;
+            }
+
+            $stmtRol = $conexion->prepare("SELECT id FROM Roles WHERE id = ? AND estado = 1 LIMIT 1");
+            if (!$stmtRol) throw new RuntimeException("No fue posible validar el rol seleccionado");
+            $stmtRol->bind_param("i", $rol);
+            $stmtRol->execute();
+            $stmtRol->store_result();
+            if ($stmtRol->num_rows <= 0) {
+                $stmtRol->close();
+                echo json_encode(["rpta" => "no", "mensaje" => "El rol seleccionado no está disponible", "error" => "Invalid role"]);
+                break;
+            }
+            $stmtRol->close();
+
+            $stmtCorreo = $conexion->prepare("SELECT id FROM usuarios WHERE correo = ? AND id <> ? LIMIT 1");
+            if (!$stmtCorreo) {
+                throw new RuntimeException("No fue posible preparar la validaciÃ³n del correo");
+            }
+            $stmtCorreo->bind_param("si", $correo, $id);
+            $stmtCorreo->execute();
+            $stmtCorreo->store_result();
+            if ($stmtCorreo->num_rows > 0) {
+                $stmtCorreo->close();
+                echo json_encode([
+                    "rpta" => "existe",
+                    "mensaje" => "El correo ya estÃ¡ registrado por otro usuario"
+                ]);
+                break;
+            }
+            $stmtCorreo->close();
 
             $sqlSelect = "SELECT id
                 FROM usuarios
@@ -467,7 +504,8 @@ switch ($case) {
             $sqlUpdate = "UPDATE usuarios
                 SET nombre = ?,
                     correo = ?,
-                    telefono = ?
+                    telefono = ?,
+                    rol = ?
                 WHERE id = ?";
 
             $stmtUpdate = $conexion->prepare($sqlUpdate);
@@ -482,7 +520,7 @@ switch ($case) {
                 break;
             }
 
-            $stmtUpdate->bind_param("sssi", $nombre, $correo, $telefono, $id);
+            $stmtUpdate->bind_param("sssii", $nombre, $correo, $telefono, $rol, $id);
 
             if (!$stmtUpdate->execute()) {
                 echo json_encode([
@@ -506,6 +544,43 @@ switch ($case) {
                 "mensaje" => "Ocurrió un error al editar el usuario",
                 "error" => $e->getMessage()
             ]);
+        }
+        break;
+
+    case 5:
+        try {
+            $id = isset($_POST["id"]) ? (int) $_POST["id"] : 0;
+            $contrasena = (string) ($_POST["contrasena"] ?? "");
+
+            if ($id <= 0) {
+                echo json_encode(["rpta" => "no", "mensaje" => "El usuario es obligatorio", "error" => "Invalid id"]);
+                break;
+            }
+            if (strlen($contrasena) < 8 || strlen($contrasena) > 72) {
+                echo json_encode(["rpta" => "no", "mensaje" => "La contraseÃ±a debe tener entre 8 y 72 caracteres", "error" => "Invalid password length"]);
+                break;
+            }
+
+            $hash = password_hash($contrasena, PASSWORD_DEFAULT);
+            if ($hash === false) {
+                throw new RuntimeException("No fue posible proteger la contraseÃ±a");
+            }
+
+            $stmt = $conexion->prepare("UPDATE usuarios SET contrasena = ?, tokenSesion = NULL WHERE id = ?");
+            if (!$stmt) {
+                throw new RuntimeException("No fue posible preparar el restablecimiento de contraseÃ±a");
+            }
+            $stmt->bind_param("si", $hash, $id);
+            $stmt->execute();
+            if ($stmt->affected_rows < 1) {
+                $stmt->close();
+                echo json_encode(["rpta" => "no", "mensaje" => "No se encontrÃ³ el usuario o la contraseÃ±a no cambiÃ³", "error" => "User not updated"]);
+                break;
+            }
+            $stmt->close();
+            echo json_encode(["rpta" => "si", "mensaje" => "ContraseÃ±a restablecida correctamente"]);
+        } catch (Throwable $e) {
+            echo json_encode(["rpta" => "no", "mensaje" => "No fue posible restablecer la contraseÃ±a", "error" => $e->getMessage()]);
         }
         break;
 

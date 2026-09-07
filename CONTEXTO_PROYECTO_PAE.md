@@ -970,3 +970,29 @@ Un módulo solo se considera terminado cuando:
 La línea de trabajo del proyecto PAE ha sido construir módulos administrativos robustos, trazables, claros y progresivos. Se prioriza terminar cada flujo completo antes de abrir otro: base de datos, servicio, interfaz, validaciones, experiencia de usuario, exportación y documentación.
 
 La continuidad debe respetar lo ya acordado y evitar reescribir módulos terminados sin una razón técnica concreta.
+## 21. Roles y permisos del sistema
+
+### 21.1. Modelo
+
+- `Roles`: catálogo formal de roles activos.
+- `Permisos`: acciones autorizables identificadas por un código estable.
+- `RolesPermisos`: relación muchos a muchos entre roles y permisos.
+- `usuarios.rol`: conserva el nombre público y pasa a relacionarse con `Roles.id` para mantener compatibilidad.
+
+La migración de referencia es `backend-reference/database/migrations/2026-09-01_roles_permisos.sql`.
+
+### 21.2. Roles iniciales
+
+1. Administrador.
+2. Inventario administrativo.
+3. Operativo de bodega.
+4. Despachos.
+5. Consulta / Auditoría.
+
+### 21.3. Reglas
+
+- Administrador conserva el identificador `1` y acceso completo.
+- El backend entrega los permisos efectivos durante el inicio y la validación de sesión.
+- El frontend filtra el menú y bloquea navegación directa según el permiso de cada pantalla.
+- Ocultar una opción en React no reemplaza la validación del permiso en servicios PHP que modifican información.
+- Los permisos se identifican como `modulo.accion`, por ejemplo `usuarios.administrar` o `conteos.ejecutar`.

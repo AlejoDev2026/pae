@@ -1,729 +1,333 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { API_BASE } from "../../constants";
+import { createElement, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { IoMenu } from "react-icons/io5";
 import {
-    FaArrowLeft,
-    FaBoxesStacked,
-    FaRoute,
-    FaSchool,
-    FaFileExcel,
-    FaClock,
-    FaLayerGroup,
-    FaChartColumn,
-    FaCube,
-    FaTriangleExclamation,
     FaArrowsRotate,
+    FaBoxesStacked,
     FaCalendarDays,
+    FaChartColumn,
+    FaClock,
+    FaCube,
+    FaFileExcel,
+    FaRoute,
+    FaTriangleExclamation,
+    FaXmark,
 } from "react-icons/fa6";
-import { toast } from "react-toastify";
+import { API_BASE } from "../../constants";
 
-const JOURNEY_ORDER = ["AM", "PM", "JORNADA_UNICA"];
+const TABS = [
+    { id: "resumen", label: "Resumen" },
+    { id: "inventario", label: "Inventario" },
+    { id: "despachos", label: "Despachos" },
+];
 
-const JOURNEY_LABELS = {
-    AM: "AM",
-    PM: "PM",
-    JORNADA_UNICA: "Jornada Única",
+const CACHE_DASHBOARD = "pae_dashboard_compacto";
+const DATA_INICIAL = {
+    resumenGeneral: {}, resumenJornadas: [], categorias: [], topRutas: [], topProductos: [], ultimosDespachos: [], ultimosArchivos: [],
+    inventario: { resumen: {}, vencimientos: {}, alertasVencimiento: [], alertasPorBodega: [], ordenesAlistamiento: {} },
 };
 
-const BLOCK_COLORS = {
-    emerald: "bg-emerald-50 border-emerald-200 text-emerald-700",
-    sky: "bg-sky-50 border-sky-200 text-sky-700",
-    amber: "bg-amber-50 border-amber-200 text-amber-700",
-    violet: "bg-violet-50 border-violet-200 text-violet-700",
-    rose: "bg-rose-50 border-rose-200 text-rose-700",
-    slate: "bg-slate-50 border-slate-200 text-slate-700",
+const leerCacheDashboard = () => {
+    try {
+        const cache = JSON.parse(sessionStorage.getItem(CACHE_DASHBOARD) || "null");
+        return cache?.data && Date.now() - Number(cache.guardadoEn || 0) < 10 * 60 * 1000 ? cache.data : null;
+    } catch {
+        return null;
+    }
 };
 
-const formatearNumero = (valor) => {
-    const numero = Number(valor || 0);
-    return new Intl.NumberFormat("es-CO").format(numero);
+const COLORS = {
+    emerald: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    sky: "border-sky-200 bg-sky-50 text-sky-700",
+    amber: "border-amber-200 bg-amber-50 text-amber-700",
+    rose: "border-rose-200 bg-rose-50 text-rose-700",
+    violet: "border-violet-200 bg-violet-50 text-violet-700",
+    slate: "border-slate-200 bg-slate-50 text-slate-700",
 };
 
-const formatearFecha = (fecha) => {
-    if (!fecha) return "—";
-    const d = new Date(`${fecha}T00:00:00`);
-    if (Number.isNaN(d.getTime())) return fecha;
-    return d.toLocaleDateString("es-CO", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-    });
+const numero = (valor) => new Intl.NumberFormat("es-CO", { maximumFractionDigits: 2 }).format(Number(valor || 0));
+
+const fecha = (valor) => {
+    if (!valor) return "—";
+    const fechaValor = new Date(`${String(valor).slice(0, 10)}T00:00:00`);
+    return Number.isNaN(fechaValor.getTime()) ? valor : fechaValor.toLocaleDateString("es-CO");
 };
 
-const formatearFechaHora = (fecha) => {
-    if (!fecha) return "—";
-    const d = new Date(fecha);
-    if (Number.isNaN(d.getTime())) return fecha;
-    return d.toLocaleString("es-CO", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+const jsonSeguro = async (response) => {
+    const texto = await response.text();
+    try { return JSON.parse(texto); } catch { throw new Error("El servidor no devolvió información válida."); }
 };
 
-const obtenerPorcentaje = (valor, maximo) => {
-    const v = Number(valor || 0);
-    const m = Number(maximo || 0);
-    if (!m || m <= 0) return 0;
-    return Math.min((v / m) * 100, 100);
-};
-
-const CardKPI = ({ titulo, valor, subtitulo, icono: Icono, color = "slate" }) => (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 md:p-5 h-full">
-        <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-500">{titulo}</p>
-                <h3 className="mt-2 text-2xl md:text-3xl font-bold text-slate-800 leading-none break-words">
-                    {valor}
-                </h3>
-                <p className="mt-2 text-xs md:text-sm text-slate-500">{subtitulo}</p>
+const Kpi = ({ titulo, valor, detalle, icono, color = "slate", onClick }) => {
+    const contenido = (
+        <>
+            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border ${COLORS[color]}`}>
+                {createElement(icono, { className: "text-base" })}
             </div>
-
-            <div
-                className={`w-11 h-11 rounded-xl border flex items-center justify-center shrink-0 ${BLOCK_COLORS[color]}`}
-            >
-                <Icono className="text-lg" />
+            <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold uppercase tracking-wide text-slate-500">{titulo}</p>
+                <p className="mt-1 truncate text-2xl font-black text-slate-900">{valor}</p>
+                <p className="mt-1 truncate text-xs text-slate-500">{detalle}</p>
             </div>
-        </div>
-    </div>
+        </>
+    );
+
+    return onClick ? (
+        <button type="button" onClick={onClick} className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-200 hover:shadow-md">
+            {contenido}
+        </button>
+    ) : (
+        <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">{contenido}</div>
+    );
+};
+
+const Panel = ({ titulo, subtitulo, children, accion }) => (
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+            <div className="min-w-0"><h3 className="truncate text-sm font-black text-slate-800">{titulo}</h3><p className="truncate text-xs text-slate-500">{subtitulo}</p></div>
+            {accion}
+        </header>
+        <div className="min-h-0 flex-1 overflow-hidden p-4">{children}</div>
+    </section>
 );
 
-const SectionCard = ({
-    titulo,
-    subtitulo,
-    icono: Icono,
-    color = "slate",
-    children,
-    acciones = null,
-}) => (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden h-full">
-        <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
-                <div
-                    className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 ${BLOCK_COLORS[color]}`}
-                >
-                    <Icono className="text-base" />
-                </div>
-                <div className="min-w-0">
-                    <h3 className="text-base md:text-lg font-semibold text-slate-800">
-                        {titulo}
-                    </h3>
-                    {subtitulo ? (
-                        <p className="text-sm text-slate-500 mt-1">{subtitulo}</p>
-                    ) : null}
-                </div>
-            </div>
-
-            {acciones ? <div className="shrink-0">{acciones}</div> : null}
-        </div>
-
-        <div className="p-5">{children}</div>
-    </div>
+const BotonDetalle = ({ onClick, children = "Ver detalle" }) => (
+    <button type="button" onClick={onClick} className="shrink-0 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800 hover:bg-blue-100">{children}</button>
 );
 
-const JourneyMiniCard = ({ item }) => (
-    <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
-        <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-slate-700">
-                {JOURNEY_LABELS[item.jornada] || item.jornada}
-            </p>
-            <span className="text-xs px-2 py-1 rounded-full bg-white border border-slate-200 text-slate-500">
-                {formatearNumero(item.totalArchivos)} archivos
-            </span>
-        </div>
+const Vacio = ({ texto }) => <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-center text-sm text-slate-500">{texto}</div>;
 
-        <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-            <div>
-                <p className="text-slate-500">Rutas</p>
-                <p className="font-semibold text-slate-800">{formatearNumero(item.totalRutas)}</p>
-            </div>
-            <div>
-                <p className="text-slate-500">Productos</p>
-                <p className="font-semibold text-slate-800">
-                    {formatearNumero(item.totalProductos)}
-                </p>
-            </div>
-            <div>
-                <p className="text-slate-500">Cantidad</p>
-                <p className="font-semibold text-slate-800">
-                    {formatearNumero(item.totalCantidad)}
-                </p>
-            </div>
-            <div>
-                <p className="text-slate-500">Cobertura</p>
-                <p className="font-semibold text-slate-800">
-                    {formatearNumero(item.totalCoberturaRuta)}
-                </p>
-            </div>
-            <div>
-                <p className="text-slate-500">PAC / Cajas</p>
-                <p className="font-semibold text-slate-800">
-                    {formatearNumero(item.totalCajasPacas)}
-                </p>
-            </div>
-            <div>
-                <p className="text-slate-500">Unidades</p>
-                <p className="font-semibold text-slate-800">
-                    {formatearNumero(item.totalUnidades)}
-                </p>
+const ListaCompacta = ({ filas, render, vacio }) => filas?.length ? <div className="divide-y divide-slate-100">{filas.map(render)}</div> : <Vacio texto={vacio} />;
+
+const BarraMetrica = ({ titulo, valor, maximo, color, icono }) => {
+    const porcentaje = Number(maximo) > 0 ? Math.max(5, Math.min((Number(valor || 0) / Number(maximo)) * 100, 100)) : 0;
+    return (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+            <div className="flex items-center gap-3">
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${COLORS[color]}`}>{createElement(icono, { className: "text-sm" })}</div>
+                <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3"><p className="text-xs font-bold text-slate-600">{titulo}</p><p className="text-base font-black text-slate-900">{numero(valor)}</p></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className={`h-full rounded-full ${color === "emerald" ? "bg-emerald-500" : color === "sky" ? "bg-sky-500" : color === "violet" ? "bg-violet-500" : "bg-amber-500"}`} style={{ width: `${porcentaje}%` }} /></div></div>
             </div>
         </div>
-    </div>
-);
+    );
+};
 
-const TablaSimple = ({ columnas = [], filas = [], vacio = "Sin información disponible." }) => (
-    <div className="overflow-x-auto w-full">
-        <table className="w-full min-w-[720px] text-sm">
-            <thead>
-                <tr className="border-b border-slate-200">
-                    {columnas.map((col) => (
-                        <th
-                            key={col.key}
-                            className={`px-3 py-3 text-left font-semibold text-slate-600 whitespace-nowrap ${
-                                col.align === "right" ? "text-right" : ""
-                            }`}
-                        >
-                            {col.label}
-                        </th>
-                    ))}
-                </tr>
-            </thead>
-            <tbody>
-                {filas.length ? (
-                    filas.map((fila, index) => (
-                        <tr
-                            key={fila.id || fila.codigo || fila.nombreRuta || fila.descripcion || index}
-                            className="border-b border-slate-100 last:border-b-0"
-                        >
-                            {columnas.map((col) => (
-                                <td
-                                    key={col.key}
-                                    className={`px-3 py-3 text-slate-700 align-top ${
-                                        col.align === "right" ? "text-right" : ""
-                                    }`}
-                                >
-                                    {col.render ? col.render(fila) : fila[col.key] ?? "—"}
-                                </td>
-                            ))}
-                        </tr>
-                    ))
-                ) : (
-                    <tr>
-                        <td
-                            colSpan={columnas.length}
-                            className="px-3 py-6 text-center text-slate-500"
-                        >
-                            {vacio}
-                        </td>
-                    </tr>
-                )}
+const Modal = ({ abierto, titulo, subtitulo, onClose, children }) => {
+    useEffect(() => {
+        if (!abierto) return undefined;
+        const cerrarEscape = (evento) => { if (evento.key === "Escape") onClose(); };
+        window.addEventListener("keydown", cerrarEscape);
+        return () => window.removeEventListener("keydown", cerrarEscape);
+    }, [abierto, onClose]);
+
+    if (!abierto) return null;
+    return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 md:p-6">
+            <button type="button" className="absolute inset-0 bg-slate-950/60" onClick={onClose} aria-label="Cerrar modal" />
+            <section className="relative flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+                <header className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4">
+                    <div><h2 className="text-lg font-black text-slate-900">{titulo}</h2><p className="mt-1 text-sm text-slate-500">{subtitulo}</p></div>
+                    <button type="button" onClick={onClose} className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100"><FaXmark /></button>
+                </header>
+                <div className="overflow-y-auto p-5">{children}</div>
+            </section>
+        </div>
+    );
+};
+
+const Tabla = ({ columnas, filas, vacio = "No hay información disponible." }) => (
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <table className="min-w-full text-sm">
+            <thead className="bg-slate-100 text-xs uppercase tracking-wide text-slate-600"><tr>{columnas.map((columna) => <th key={columna.key} className={`px-4 py-3 ${columna.align === "right" ? "text-right" : "text-left"}`}>{columna.label}</th>)}</tr></thead>
+            <tbody className="divide-y divide-slate-100">
+                {filas?.length ? filas.map((fila, index) => <tr key={fila.id || fila.idLote || `${index}`} className="hover:bg-slate-50">{columnas.map((columna) => <td key={columna.key} className={`px-4 py-3 ${columna.align === "right" ? "text-right" : "text-left"}`}>{columna.render ? columna.render(fila) : fila[columna.key]}</td>)}</tr>) : <tr><td colSpan={columnas.length} className="p-8 text-center text-slate-500">{vacio}</td></tr>}
             </tbody>
         </table>
     </div>
 );
 
-const BarraHorizontal = ({
-    items = [],
-    valueKey = "totalCantidad",
-    labelKey = "nombre",
-    emptyText = "Sin datos.",
-}) => {
-    const maximo = useMemo(() => {
-        if (!items.length) return 0;
-        return Math.max(...items.map((item) => Number(item[valueKey] || 0)));
-    }, [items, valueKey]);
-
-    if (!items.length) {
-        return <div className="text-sm text-slate-500">{emptyText}</div>;
-    }
-
-    return (
-        <div className="space-y-4">
-            {items.map((item, index) => {
-                const valor = Number(item[valueKey] || 0);
-                const porcentaje = obtenerPorcentaje(valor, maximo);
-
-                return (
-                    <div key={`${item[labelKey]}-${index}`}>
-                        <div className="flex items-center justify-between gap-3 mb-1.5">
-                            <p className="text-sm font-medium text-slate-700 truncate">
-                                {item[labelKey] || "Sin nombre"}
-                            </p>
-                            <p className="text-sm font-semibold text-slate-800 shrink-0">
-                                {formatearNumero(valor)}
-                            </p>
-                        </div>
-
-                        <div className="w-full h-3 rounded-full bg-slate-100 overflow-hidden">
-                            <div
-                                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                                style={{ width: `${porcentaje}%` }}
-                            />
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
-};
-
 export const DashboardGeneral = ({ setSidebar, navegar }) => {
-    const abrirMenu = () => setSidebar?.(true);
-    const volver = () => navegar?.("despachos");
-
-    const hoy = new Date();
-    const hace30 = new Date();
-    hace30.setDate(hoy.getDate() - 30);
-
-    const [fechaInicio, setFechaInicio] = useState(hace30.toISOString().slice(0, 10));
+    const cacheInicial = useMemo(() => leerCacheDashboard(), []);
+    const hoy = useMemo(() => new Date(), []);
+    const desde = useMemo(() => { const valor = new Date(); valor.setDate(valor.getDate() - 30); return valor; }, []);
+    const [fechaInicio, setFechaInicio] = useState(desde.toISOString().slice(0, 10));
     const [fechaFin, setFechaFin] = useState(hoy.toISOString().slice(0, 10));
-    const [loading, setLoading] = useState(false);
+    const [tab, setTab] = useState("resumen");
+    const [modal, setModal] = useState(null);
+    const [loading, setLoading] = useState(!cacheInicial);
+    const [error, setError] = useState("");
+    const requestRef = useRef(null);
+    const primeraCargaRef = useRef(true);
+    const [data, setData] = useState(cacheInicial || DATA_INICIAL);
 
-    const [dashboard, setDashboard] = useState({
-        resumenGeneral: {},
-        resumenJornadas: [],
-        categorias: [],
-        topRutas: [],
-        topProductos: [],
-        ultimosDespachos: [],
-        ultimosArchivos: [],
-    });
-
-    const intentarJson = async (resp) => {
-        const raw = await resp.text();
-
+    const cargar = async (usarFechas = true) => {
+        requestRef.current?.abort();
+        const controller = new AbortController();
+        requestRef.current = controller;
+        const timeout = window.setTimeout(() => controller.abort(), primeraCargaRef.current ? 60000 : 30000);
+        if (!cacheInicial || !primeraCargaRef.current) setLoading(true);
+        setError("");
         try {
-            return JSON.parse(raw);
-        } catch (error) {
-            console.error("Respuesta no JSON:", raw);
-            throw new Error(
-                raw?.trim()
-                    ? `El backend no devolvió JSON válido. Respuesta: ${raw.slice(0, 180)}`
-                    : "No se recibió respuesta válida del servidor."
-            );
-        }
-    };
-
-    const construirUrls = (params) => {
-        const base = (API_BASE || "").replace(/\/+$/, "");
-        const query = params.toString() ? `?${params.toString()}` : "";
-        const urls = [];
-
-        if (base) {
-            urls.push(`${base}/Dashboard/DashboardGetResumen.php${query}`);
-            urls.push(`${base}/Despachos/DashboardGetResumen.php${query}`);
-        }
-
-        urls.push(`https://gruponava.com.co/servicesPae/Dashboard/DashboardGetResumen.php${query}`);
-        urls.push(`https://gruponava.com.co/servicesPae/Despachos/DashboardGetResumen.php${query}`);
-
-        return [...new Set(urls)];
-    };
-
-    const cargarDashboard = async (usarFechas = true) => {
-        try {
-            setLoading(true);
-
-            const params = new URLSearchParams();
-            if (usarFechas && fechaInicio && fechaFin) {
-                params.append("fechaInicio", fechaInicio);
-                params.append("fechaFin", fechaFin);
+            const parametros = new URLSearchParams();
+            parametros.set("compacto", "1");
+            if (usarFechas && fechaInicio && fechaFin) { parametros.set("fechaInicio", fechaInicio); parametros.set("fechaFin", fechaFin); }
+            const base = API_BASE.replace(/\/+$/, "");
+            const response = await fetch(`${base}/Dashboard/DashboardGetResumen.php?${parametros}`, { signal: controller.signal, cache: "no-store" });
+            const resultado = await jsonSeguro(response);
+            if (!response.ok || !resultado?.ok) throw new Error(resultado?.mensaje || "No fue posible cargar el dashboard.");
+            const nuevosDatos = {
+                resumenGeneral: resultado.resumenGeneral || {},
+                resumenJornadas: Array.isArray(resultado.resumenJornadas) ? resultado.resumenJornadas : [],
+                categorias: Array.isArray(resultado.categorias) ? resultado.categorias : [],
+                topRutas: Array.isArray(resultado.topRutas) ? resultado.topRutas : [],
+                topProductos: Array.isArray(resultado.topProductos) ? resultado.topProductos : [],
+                ultimosDespachos: Array.isArray(resultado.ultimosDespachos) ? resultado.ultimosDespachos : [],
+                ultimosArchivos: Array.isArray(resultado.ultimosArchivos) ? resultado.ultimosArchivos : [],
+                inventario: {
+                    resumen: resultado.inventario?.resumen || {}, vencimientos: resultado.inventario?.vencimientos || {},
+                    alertasVencimiento: Array.isArray(resultado.inventario?.alertasVencimiento) ? resultado.inventario.alertasVencimiento : [],
+                    alertasPorBodega: Array.isArray(resultado.inventario?.alertasPorBodega) ? resultado.inventario.alertasPorBodega : [],
+                    ordenesAlistamiento: resultado.inventario?.ordenesAlistamiento || {},
+                },
+            };
+            setData(nuevosDatos);
+            sessionStorage.setItem(CACHE_DASHBOARD, JSON.stringify({ data: nuevosDatos, guardadoEn: Date.now() }));
+        } catch (err) {
+            const tieneDatosVisibles = Object.keys(data.resumenGeneral || {}).length > 0 || Object.keys(data.inventario?.resumen || {}).length > 0;
+            if (!tieneDatosVisibles) {
+                if (err?.name === "AbortError") setError("La consulta tardó demasiado. Intenta actualizar nuevamente.");
+                else setError(err?.message || "No fue posible cargar el dashboard.");
+            } else {
+                toast.warning("Se mantienen los últimos indicadores disponibles porque la actualización tardó demasiado.");
             }
-
-            const urls = construirUrls(params);
-
-            let ultimoError = null;
-            let data = null;
-
-            for (const url of urls) {
-                try {
-                    const resp = await fetch(url, {
-                        method: "GET",
-                        headers: {
-                            Accept: "application/json",
-                        },
-                    });
-
-                    const json = await intentarJson(resp);
-
-                    if (!resp.ok || !json?.ok) {
-                        throw new Error(
-                            json?.mensaje || `Error HTTP ${resp.status} al consultar dashboard.`
-                        );
-                    }
-
-                    data = json;
-                    break;
-                } catch (error) {
-                    console.error(`Falló URL: ${url}`, error);
-                    ultimoError = error;
-                }
-            }
-
-            if (!data) {
-                throw ultimoError || new Error("No fue posible cargar el dashboard.");
-            }
-
-            setDashboard({
-                resumenGeneral: data.resumenGeneral || {},
-                resumenJornadas: Array.isArray(data.resumenJornadas) ? data.resumenJornadas : [],
-                categorias: Array.isArray(data.categorias) ? data.categorias : [],
-                topRutas: Array.isArray(data.topRutas) ? data.topRutas : [],
-                topProductos: Array.isArray(data.topProductos) ? data.topProductos : [],
-                ultimosDespachos: Array.isArray(data.ultimosDespachos) ? data.ultimosDespachos : [],
-                ultimosArchivos: Array.isArray(data.ultimosArchivos) ? data.ultimosArchivos : [],
-            });
-        } catch (error) {
-            console.error("Error cargando dashboard:", error);
-            toast.error(error.message || "Error cargando el dashboard.");
-        } finally {
-            setLoading(false);
-        }
+            if (err?.name !== "AbortError" && !tieneDatosVisibles) toast.error(err?.message || "No fue posible cargar el dashboard.");
+        } finally { window.clearTimeout(timeout); primeraCargaRef.current = false; setLoading(false); }
     };
 
     useEffect(() => {
-        cargarDashboard(true);
+        cargar(true);
+        return () => requestRef.current?.abort();
+        // La carga inicial conserva el rango predeterminado; los cambios se aplican con el botón Actualizar.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const resumen = dashboard.resumenGeneral || {};
+    const despacho = data.resumenGeneral || {};
+    const inventario = data.inventario?.resumen || {};
+    const vencimientos = data.inventario?.vencimientos || {};
+    const ordenes = data.inventario?.ordenesAlistamiento || {};
+    const alertas = data.inventario?.alertasVencimiento || [];
 
-    const jornadasOrdenadas = useMemo(() => {
-        const jornadas = Array.isArray(dashboard.resumenJornadas) ? dashboard.resumenJornadas : [];
-        return [...jornadas].sort((a, b) => {
-            const ia = JOURNEY_ORDER.indexOf(a.jornada);
-            const ib = JOURNEY_ORDER.indexOf(b.jornada);
-            return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-        });
-    }, [dashboard.resumenJornadas]);
+    const kpis = tab === "despachos" ? [
+        ["Despachos", despacho.totalDespachos, "Registros consolidados", FaBoxesStacked, "emerald", "despachos"],
+        ["Rutas", despacho.totalRutas, "Rutas encontradas", FaRoute, "sky", "despachos"],
+        ["Productos", despacho.totalProductos, "Productos diferentes", FaCube, "violet", "despachos"],
+        ["Cantidad", despacho.totalCantidad, "Volumen consolidado", FaChartColumn, "amber", "despachos"],
+    ] : tab === "inventario" ? [
+        ["Disponible", inventario.cantidadDisponible, `${numero(inventario.porcentajeDisponible)}% del total`, FaBoxesStacked, "emerald", "existencias"],
+        ["Reservado", inventario.cantidadReservada, "Comprometido", FaClock, "sky", "ordenes"],
+        ["Bloqueado", inventario.cantidadBloqueada, "No disponible", FaTriangleExclamation, "amber", "existencias"],
+        ["Bajo mínimo", inventario.productosBajoMinimo, `${numero(inventario.productosSinExistencia)} sin existencia`, FaCube, "rose", "existencias"],
+    ] : [
+        ["Disponible", inventario.cantidadDisponible, `${numero(inventario.porcentajeDisponible)}% del inventario`, FaBoxesStacked, "emerald", "existencias"],
+        ["Vencidos", vencimientos.lotesVencidos, `${numero(vencimientos.cantidadVencida)} unidades`, FaTriangleExclamation, "rose", "vencimientos"],
+        ["Vencen en 30 días", vencimientos.lotesCriticos, `${numero(vencimientos.productosCriticos)} productos`, FaClock, "amber", "vencimientos"],
+        ["Órdenes pendientes", ordenes.conPendientes, `${numero(ordenes.enAlistamiento)} en proceso`, FaBoxesStacked, "violet", "ordenes"],
+    ];
 
-    const alertas = useMemo(() => {
-        const archivosConError = (dashboard.ultimosArchivos || []).filter(
-            (item) => item.mensajeError && String(item.mensajeError).trim() !== ""
-        ).length;
-
-        const despachosSinRutas = (dashboard.ultimosDespachos || []).filter(
-            (item) => Number(item.totalRutas || 0) === 0
-        ).length;
-
-        const productosSinCategoria = (dashboard.categorias || []).find(
-            (item) => !item.nombre || item.nombre === "Sin categoría"
-        );
-
-        return [
-            {
-                titulo: "Archivos con novedad",
-                valor: archivosConError,
-                detalle: archivosConError
-                    ? "Revisar los últimos archivos cargados"
-                    : "Sin novedades recientes",
-            },
-            {
-                titulo: "Despachos sin rutas",
-                valor: despachosSinRutas,
-                detalle: despachosSinRutas
-                    ? "Hay despachos recientes pendientes por validar"
-                    : "Todos los últimos despachos tienen rutas",
-            },
-            {
-                titulo: "Productos sin categoría",
-                valor: productosSinCategoria ? productosSinCategoria.totalProductos : 0,
-                detalle: productosSinCategoria
-                    ? "Existen productos pendientes de clasificar"
-                    : "Clasificación de categorías al día",
-            },
-            {
-                titulo: "Última actualización",
-                valor: dashboard.ultimosArchivos?.[0]?.created_at
-                    ? formatearFechaHora(dashboard.ultimosArchivos[0].created_at)
-                    : "—",
-                detalle: "Tomado del último archivo procesado",
-            },
-        ];
-    }, [dashboard.ultimosArchivos, dashboard.ultimosDespachos, dashboard.categorias]);
+    const abrirDesdeKpi = (tipo) => {
+        if (tipo === "existencias") navegar?.("ExistenciasInventario");
+        else setModal(tipo);
+    };
 
     return (
-        <div className="h-full w-full overflow-y-auto overflow-x-hidden bg-slate-50">
-            <div className="w-full max-w-none px-4 md:px-6 py-4 md:py-6 space-y-6 pb-10">
-                <div className="w-full bg-white border border-slate-200 rounded-2xl shadow-sm px-4 py-4 md:px-6 md:py-5">
-                    <div className="flex flex-col 2xl:flex-row 2xl:items-center 2xl:justify-between gap-4">
-                        <div className="flex items-start gap-3 min-w-0">
-                            <button
-                                type="button"
-                                onClick={abrirMenu}
-                                className="lg:hidden w-11 h-11 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 flex items-center justify-center shrink-0"
-                            >
-                                <IoMenu className="text-xl" />
-                            </button>
-
-                            {/* <button
-                                type="button"
-                                onClick={volver}
-                                className="hidden md:flex w-11 h-11 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 items-center justify-center shrink-0"
-                            >
-                                <FaArrowLeft className="text-base" />
-                            </button> */}
-
-                            <div className="min-w-0">
-                                <h1 className="text-2xl md:text-3xl font-bold text-slate-800">
-                                    Dashboard General
-                                </h1>
-                                <p className="text-sm md:text-base text-slate-500 mt-1">
-                                    Resumen consolidado de despachos, rutas, productos, categorías y cobertura.
-                                </p>
-                            </div>
+        <div className="h-full w-full overflow-y-auto bg-slate-100 lg:overflow-hidden">
+            <div className="flex min-h-full flex-col gap-3 p-3 md:p-4 lg:h-full lg:min-h-0">
+                <header className="shrink-0 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                    <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                        <div className="flex items-center gap-3">
+                            <button type="button" onClick={() => setSidebar?.(true)} className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 lg:hidden"><IoMenu /></button>
+                            <div><h1 className="text-xl font-black text-slate-900">Dashboard</h1><p className="text-xs text-slate-500">Vista ejecutiva de inventario y despachos</p></div>
+                            <nav className="ml-2 hidden rounded-xl bg-slate-100 p-1 sm:flex">{TABS.map((item) => <button key={item.id} type="button" onClick={() => setTab(item.id)} className={`rounded-lg px-4 py-2 text-xs font-bold transition ${tab === item.id ? "bg-white text-blue-800 shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{item.label}</button>)}</nav>
                         </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 w-full 2xl:w-auto">
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 min-w-[180px]">
-                                <FaCalendarDays className="text-slate-500 shrink-0" />
-                                <input
-                                    type="date"
-                                    value={fechaInicio}
-                                    onChange={(e) => setFechaInicio(e.target.value)}
-                                    className="bg-transparent text-sm text-slate-700 outline-none w-full"
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 min-w-[180px]">
-                                <FaCalendarDays className="text-slate-500 shrink-0" />
-                                <input
-                                    type="date"
-                                    value={fechaFin}
-                                    onChange={(e) => setFechaFin(e.target.value)}
-                                    className="bg-transparent text-sm text-slate-700 outline-none w-full"
-                                />
-                            </div>
-
-                            <button
-                                type="button"
-                                onClick={() => cargarDashboard(true)}
-                                disabled={loading}
-                                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold w-full"
-                            >
-                                Aplicar filtro
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={() => cargarDashboard(false)}
-                                disabled={loading}
-                                className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold flex items-center justify-center gap-2 w-full"
-                            >
-                                <FaArrowsRotate className={loading ? "animate-spin" : ""} />
-                                General
-                            </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <div className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3"><FaCalendarDays className="text-slate-400" /><input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className="w-28 bg-transparent text-xs outline-none" /></div>
+                            <div className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 px-3"><input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className="w-28 bg-transparent text-xs outline-none" /></div>
+                            <button type="button" onClick={() => cargar(true)} disabled={loading} className="flex h-9 items-center gap-2 rounded-xl bg-blue-800 px-4 text-xs font-bold text-white disabled:opacity-60"><FaArrowsRotate className={loading ? "animate-spin" : ""} />Actualizar</button>
                         </div>
+                        <nav className="flex rounded-xl bg-slate-100 p-1 sm:hidden">{TABS.map((item) => <button key={item.id} type="button" onClick={() => setTab(item.id)} className={`flex-1 rounded-lg px-3 py-2 text-xs font-bold ${tab === item.id ? "bg-white text-blue-800 shadow-sm" : "text-slate-500"}`}>{item.label}</button>)}</nav>
                     </div>
-                </div>
+                </header>
 
-                {loading ? (
-                    <div className="w-full bg-white border border-slate-200 rounded-2xl shadow-sm p-10 text-center text-slate-500">
-                        Cargando dashboard...
+                {loading ? <div className="flex min-h-72 flex-1 items-center justify-center rounded-2xl border border-slate-200 bg-white text-sm text-slate-500"><FaArrowsRotate className="mr-2 animate-spin" />Cargando indicadores…</div> : error ? <div className="flex min-h-72 flex-1 flex-col items-center justify-center rounded-2xl border border-red-200 bg-white p-6 text-center"><FaTriangleExclamation className="mb-3 text-2xl text-red-500" /><p className="font-bold text-slate-800">No se pudo cargar el dashboard</p><p className="mt-1 text-sm text-slate-500">{error}</p><button type="button" onClick={() => cargar(true)} className="mt-4 rounded-xl bg-blue-800 px-4 py-2 text-sm font-bold text-white">Reintentar</button></div> : <>
+                    <div className="grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        {kpis.map(([titulo, valor, detalle, icono, color, destino]) => <Kpi key={titulo} titulo={titulo} valor={numero(valor)} detalle={detalle} icono={icono} color={color} onClick={() => abrirDesdeKpi(destino)} />)}
                     </div>
-                ) : (
-                    <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 w-full">
-                            <CardKPI titulo="Despachos" valor={formatearNumero(resumen.totalDespachos)} subtitulo="Registros consolidados" icono={FaBoxesStacked} color="emerald" />
-                            <CardKPI titulo="Archivos cargados" valor={formatearNumero(resumen.totalArchivos)} subtitulo="Archivos procesados" icono={FaFileExcel} color="sky" />
-                            <CardKPI titulo="Rutas" valor={formatearNumero(resumen.totalRutas)} subtitulo="Rutas encontradas" icono={FaRoute} color="amber" />
-                            <CardKPI titulo="Productos" valor={formatearNumero(resumen.totalProductos)} subtitulo="Productos distintos" icono={FaCube} color="violet" />
-                            <CardKPI titulo="Sedes / Colegios" valor={formatearNumero(Number(resumen.totalSedes || 0) || Number(resumen.totalColegios || 0))} subtitulo="Puntos impactados" icono={FaSchool} color="slate" />
-                            <CardKPI titulo="Cantidad total" valor={formatearNumero(resumen.totalCantidad)} subtitulo="Suma general cargada" icono={FaChartColumn} color="emerald" />
-                            <CardKPI titulo="Cobertura total" valor={formatearNumero(resumen.totalCoberturaRuta)} subtitulo="Cobertura consolidada" icono={FaLayerGroup} color="sky" />
-                            <CardKPI titulo="PAC / UND" valor={`${formatearNumero(resumen.totalCajasPacas)} / ${formatearNumero(resumen.totalUnidades)}`} subtitulo="PAC o cajas y unidades" icono={FaBoxesStacked} color="amber" />
-                        </div>
 
-                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 w-full">
-                            <div className="xl:col-span-2 min-w-0">
-                                <SectionCard titulo="Comportamiento por jornada" subtitulo="Distribución general por AM, PM y Jornada Única" icono={FaClock} color="sky">
-                                    <BarraHorizontal
-                                        items={jornadasOrdenadas.map((item) => ({
-                                            ...item,
-                                            nombre: JOURNEY_LABELS[item.jornada] || item.jornada,
-                                        }))}
-                                        valueKey="totalCantidad"
-                                        labelKey="nombre"
-                                        emptyText="No hay datos por jornada."
-                                    />
-                                </SectionCard>
-                            </div>
-
-                            <div className="min-w-0">
-                                <SectionCard titulo="Resumen rápido por jornada" subtitulo="Lectura operativa" icono={FaClock} color="sky">
-                                    <div className="space-y-3">
-                                        {jornadasOrdenadas.length ? (
-                                            jornadasOrdenadas.map((item) => (
-                                                <JourneyMiniCard key={item.jornada} item={item} />
-                                            ))
-                                        ) : (
-                                            <p className="text-sm text-slate-500">
-                                                No hay información por jornada.
-                                            </p>
-                                        )}
-                                    </div>
-                                </SectionCard>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
-                            <div className="min-w-0">
-                                <SectionCard titulo="Top rutas" subtitulo="Rutas con mayor volumen consolidado" icono={FaRoute} color="emerald">
-                                    <TablaSimple
-                                        columnas={[
-                                            {
-                                                key: "nombreRuta",
-                                                label: "Ruta",
-                                                render: (fila) => (
-                                                    <div>
-                                                        <p className="font-semibold text-slate-800">{fila.nombreRuta || "—"}</p>
-                                                        <p className="text-xs text-slate-500">Orden: {fila.ordenRuta ?? "—"}</p>
-                                                    </div>
-                                                ),
-                                            },
-                                            { key: "totalProductos", label: "Productos", align: "right", render: (fila) => formatearNumero(fila.totalProductos) },
-                                            { key: "totalCantidad", label: "Cantidad", align: "right", render: (fila) => formatearNumero(fila.totalCantidad) },
-                                            { key: "totalCoberturaRuta", label: "Cobertura", align: "right", render: (fila) => formatearNumero(fila.totalCoberturaRuta) },
-                                            { key: "totalUnidades", label: "Unidades", align: "right", render: (fila) => formatearNumero(fila.totalUnidades) },
-                                        ]}
-                                        filas={dashboard.topRutas}
-                                        vacio="No hay rutas para mostrar."
-                                    />
-                                </SectionCard>
-                            </div>
-
-                            <div className="min-w-0">
-                                <SectionCard titulo="Top productos" subtitulo="Productos con mayor movimiento" icono={FaCube} color="violet">
-                                    <TablaSimple
-                                        columnas={[
-                                            {
-                                                key: "descripcion",
-                                                label: "Producto",
-                                                render: (fila) => (
-                                                    <div>
-                                                        <p className="font-semibold text-slate-800">{fila.descripcion || "—"}</p>
-                                                        <p className="text-xs text-slate-500">Código: {fila.codigo || "—"}</p>
-                                                    </div>
-                                                ),
-                                            },
-                                            { key: "totalRutas", label: "Rutas", align: "right", render: (fila) => formatearNumero(fila.totalRutas) },
-                                            { key: "totalCantidad", label: "Cantidad", align: "right", render: (fila) => formatearNumero(fila.totalCantidad) },
-                                            { key: "totalCajasPacas", label: "PAC / Cajas", align: "right", render: (fila) => formatearNumero(fila.totalCajasPacas) },
-                                            { key: "totalUnidades", label: "Unidades", align: "right", render: (fila) => formatearNumero(fila.totalUnidades) },
-                                        ]}
-                                        filas={dashboard.topProductos}
-                                        vacio="No hay productos para mostrar."
-                                    />
-                                </SectionCard>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
-                            <div className="min-w-0">
-                                <SectionCard titulo="Resumen por categoría" subtitulo="Participación de categorías en el volumen general" icono={FaLayerGroup} color="amber">
-                                    <div className="space-y-5">
-                                        <BarraHorizontal
-                                            items={(dashboard.categorias || []).slice(0, 8).map((item) => ({
-                                                ...item,
-                                                nombre: item.nombre || "Sin categoría",
-                                            }))}
-                                            valueKey="totalCantidad"
-                                            labelKey="nombre"
-                                            emptyText="No hay categorías disponibles."
-                                        />
-
-                                        <div className="pt-2">
-                                            <TablaSimple
-                                                columnas={[
-                                                    { key: "nombre", label: "Categoría", render: (fila) => fila.nombre || "Sin categoría" },
-                                                    { key: "totalProductos", label: "Productos", align: "right", render: (fila) => formatearNumero(fila.totalProductos) },
-                                                    { key: "totalCantidad", label: "Cantidad", align: "right", render: (fila) => formatearNumero(fila.totalCantidad) },
-                                                ]}
-                                                filas={(dashboard.categorias || []).slice(0, 6)}
-                                                vacio="No hay categorías para mostrar."
-                                            />
-                                        </div>
-                                    </div>
-                                </SectionCard>
-                            </div>
-
-                            <div className="min-w-0">
-                                <SectionCard titulo="Estado del sistema" subtitulo="Validaciones rápidas y novedades recientes" icono={FaTriangleExclamation} color="rose">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {alertas.map((item, index) => (
-                                            <div
-                                                key={`${item.titulo}-${index}`}
-                                                className="border border-slate-200 rounded-xl p-4 bg-slate-50"
-                                            >
-                                                <p className="text-sm text-slate-500">{item.titulo}</p>
-                                                <p className="mt-2 text-xl font-bold text-slate-800 break-words">
-                                                    {typeof item.valor === "number" ? formatearNumero(item.valor) : item.valor}
-                                                </p>
-                                                <p className="mt-2 text-sm text-slate-500">{item.detalle}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </SectionCard>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 w-full">
-                            <div className="min-w-0">
-                                <SectionCard titulo="Últimos despachos" subtitulo="Actividad reciente del módulo" icono={FaBoxesStacked} color="slate">
-                                    <TablaSimple
-                                        columnas={[
-                                            {
-                                                key: "codigo",
-                                                label: "Despacho",
-                                                render: (fila) => (
-                                                    <div>
-                                                        <p className="font-semibold text-slate-800">{fila.codigo || `Despacho #${fila.id}`}</p>
-                                                        <p className="text-xs text-slate-500">{formatearFecha(fila.fechaDespacho)}</p>
-                                                    </div>
-                                                ),
-                                            },
-                                            { key: "tipoPeriodo", label: "Periodo", render: (fila) => fila.tipoPeriodo || "—" },
-                                            { key: "totalRutas", label: "Rutas", align: "right", render: (fila) => formatearNumero(fila.totalRutas) },
-                                            { key: "totalProductos", label: "Productos", align: "right", render: (fila) => formatearNumero(fila.totalProductos) },
-                                            { key: "totalCantidad", label: "Cantidad", align: "right", render: (fila) => formatearNumero(fila.totalCantidad) },
-                                        ]}
-                                        filas={dashboard.ultimosDespachos}
-                                        vacio="No hay despachos recientes."
-                                    />
-                                </SectionCard>
-                            </div>
-
-                            <div className="min-w-0">
-                                <SectionCard titulo="Últimos archivos cargados" subtitulo="Control de los archivos procesados recientemente" icono={FaFileExcel} color="sky">
-                                    <TablaSimple
-                                        columnas={[
-                                            {
-                                                key: "nombreArchivo",
-                                                label: "Archivo",
-                                                render: (fila) => (
-                                                    <div>
-                                                        <p className="font-semibold text-slate-800 break-all">{fila.nombreArchivo || "—"}</p>
-                                                        <p className="text-xs text-slate-500">
-                                                            {fila.codigoDespacho || `Despacho #${fila.idDespacho}`}
-                                                        </p>
-                                                    </div>
-                                                ),
-                                            },
-                                            { key: "tipoArchivo", label: "Jornada", render: (fila) => JOURNEY_LABELS[fila.tipoArchivo] || fila.tipoArchivo || "—" },
-                                            { key: "rutasDetectadas", label: "Rutas", align: "right", render: (fila) => formatearNumero(fila.rutasDetectadas) },
-                                            { key: "created_at", label: "Fecha", render: (fila) => formatearFechaHora(fila.created_at) },
-                                        ]}
-                                        filas={dashboard.ultimosArchivos}
-                                        vacio="No hay archivos recientes."
-                                    />
-                                </SectionCard>
-                            </div>
-                        </div>
-                    </>
-                )}
+                    <main key={tab} className={`grid min-h-0 flex-1 grid-cols-1 gap-3 ${tab === "despachos" ? "lg:grid-cols-[1.35fr_0.65fr]" : tab === "inventario" ? "lg:grid-cols-[1.3fr_0.7fr]" : "lg:grid-cols-[1.2fr_0.8fr]"}`}>
+                        {tab === "despachos" ? <>
+                            <Panel titulo="Últimos despachos" subtitulo="Actividad reciente del módulo" accion={<BotonDetalle onClick={() => setModal("despachos")} />}>
+                                <ListaCompacta filas={data.ultimosDespachos.slice(0, 8)} vacio="No hay despachos para mostrar." render={(fila, index) => <div key={`despacho-${fila.id || index}`} className="group flex items-center gap-3 py-2.5"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-800 to-cyan-600 text-xs font-black text-white shadow-sm">{String(index + 1).padStart(2, "0")}</div><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-sm font-black text-slate-800">{fila.codigo || `Despacho #${fila.id}`}</p><span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-500 md:inline">{fila.tipoPeriodo || "Periodo"}</span></div><div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500"><span>{fecha(fila.fechaDespacho)}</span><span>{numero(fila.totalRutas)} rutas</span><span>{numero(fila.totalProductos)} productos</span></div></div><div className="text-right"><p className="text-sm font-black text-slate-900">{numero(fila.totalCantidad)}</p><p className="text-[10px] uppercase tracking-wide text-slate-400">cantidad</p></div></div>} />
+                            </Panel>
+                            <Panel titulo="Consolidado del periodo" subtitulo="Lectura rápida de la operación">
+                                <div className="flex h-full flex-col justify-between gap-2">
+                                    <BarraMetrica titulo="Archivos procesados" valor={despacho.totalArchivos} maximo={Math.max(Number(despacho.totalArchivos || 0), Number(despacho.totalColegios || 0))} color="sky" icono={FaFileExcel} />
+                                    <BarraMetrica titulo="Colegios impactados" valor={despacho.totalColegios} maximo={Math.max(Number(despacho.totalArchivos || 0), Number(despacho.totalColegios || 0))} color="emerald" icono={FaBoxesStacked} />
+                                    <BarraMetrica titulo="Cobertura total" valor={despacho.totalCoberturaRuta} maximo={Math.max(Number(despacho.totalCoberturaRuta || 0), Number(despacho.totalCajasPacas || 0))} color="violet" icono={FaChartColumn} />
+                                    <BarraMetrica titulo="PAC / Cajas" valor={despacho.totalCajasPacas} maximo={Math.max(Number(despacho.totalCoberturaRuta || 0), Number(despacho.totalCajasPacas || 0))} color="amber" icono={FaBoxesStacked} />
+                                    <button type="button" onClick={() => setModal("despachos")} className="mt-1 flex h-10 items-center justify-center rounded-xl bg-slate-900 text-xs font-bold text-white hover:bg-blue-900">Abrir detalle del periodo</button>
+                                </div>
+                            </Panel>
+                        </> : tab === "inventario" ? <>
+                            <Panel titulo="Vencimientos prioritarios" subtitulo="Existencia disponible hasta 60 días" accion={<BotonDetalle onClick={() => setModal("vencimientos")} />}>
+                                <ListaCompacta filas={alertas.slice(0, 7)} vacio="No hay alertas de vencimiento." render={(fila, index) => <div key={fila.idLote || index} className="flex items-center gap-3 py-2.5"><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-black text-white shadow-sm ${Number(fila.diasParaVencer) < 0 ? "bg-gradient-to-br from-red-700 to-rose-500" : "bg-gradient-to-br from-amber-600 to-orange-400"}`}>{String(index + 1).padStart(2, "0")}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-slate-800">{fila.producto}</p><p className="mt-1 truncate text-[11px] text-slate-500">Lote {fila.lote} · {fila.bodega}</p></div><div className="text-right"><p className={`text-xs font-black ${Number(fila.diasParaVencer) < 0 ? "text-red-600" : "text-amber-600"}`}>{Number(fila.diasParaVencer) < 0 ? `${Math.abs(fila.diasParaVencer)} días vencido` : `${fila.diasParaVencer} días`}</p><p className="mt-1 text-[10px] uppercase tracking-wide text-slate-400">{numero(fila.cantidadDisponible)} disponibles</p></div></div>} />
+                            </Panel>
+                            <Panel titulo="Alertas por bodega" subtitulo="Vencidos y próximos a vencer" accion={<BotonDetalle onClick={() => setModal("bodegas")} />}>
+                                <div className="flex h-full flex-col justify-between gap-2">{data.inventario.alertasPorBodega.slice(0, 5).map((fila, index) => <BarraMetrica key={fila.idBodega || index} titulo={fila.bodega} valor={Number(fila.lotesVencidos || 0) + Number(fila.lotesPorVencer || 0)} maximo={Math.max(...data.inventario.alertasPorBodega.map((item) => Number(item.lotesVencidos || 0) + Number(item.lotesPorVencer || 0)), 1)} color={Number(fila.lotesVencidos || 0) > 0 ? "amber" : "emerald"} icono={FaBoxesStacked} />)}{!data.inventario.alertasPorBodega.length && <Vacio texto="No hay alertas por bodega." />}<button type="button" onClick={() => setModal("bodegas")} className="mt-1 flex h-10 items-center justify-center rounded-xl bg-slate-900 text-xs font-bold text-white hover:bg-blue-900">Analizar todas las bodegas</button></div>
+                            </Panel>
+                        </> : <>
+                            <Panel titulo="Alertas que requieren atención" subtitulo="Vencimientos y disponibilidad" accion={<BotonDetalle onClick={() => setModal("vencimientos")} />}>
+                                <ListaCompacta filas={alertas.slice(0, 7)} vacio="No hay alertas urgentes." render={(fila, index) => <div key={fila.idLote || index} className="flex items-center gap-3 py-2.5"><div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${fila.clasificacion === "VENCIDO" ? "bg-red-50 text-red-600" : "bg-amber-50 text-amber-600"}`}><FaTriangleExclamation /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-black text-slate-800">{fila.producto}</p><p className="mt-1 truncate text-[11px] text-slate-500">{fila.bodega} · Lote {fila.lote}</p></div><div className="text-right"><span className={`rounded-full px-2 py-1 text-[10px] font-black ${fila.clasificacion === "VENCIDO" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>{fila.clasificacion}</span><p className="mt-1.5 text-[10px] text-slate-400">{numero(fila.cantidadDisponible)} unidades</p></div></div>} />
+                            </Panel>
+                            <Panel titulo="Operación del día" subtitulo="Alistamiento y despachos" accion={<BotonDetalle onClick={() => setModal("ordenes")} />}>
+                                <div className="flex h-full flex-col justify-between gap-2">
+                                    <BarraMetrica titulo="Por asignar" valor={ordenes.pendientesAsignacion} maximo={ordenes.total} color="amber" icono={FaClock} />
+                                    <BarraMetrica titulo="Asignadas" valor={ordenes.asignadas} maximo={ordenes.total} color="sky" icono={FaBoxesStacked} />
+                                    <BarraMetrica titulo="En proceso" valor={ordenes.enAlistamiento} maximo={ordenes.total} color="violet" icono={FaArrowsRotate} />
+                                    <BarraMetrica titulo="En logística" valor={ordenes.enLogistica} maximo={ordenes.total} color="emerald" icono={FaRoute} />
+                                    <button type="button" onClick={() => setModal("ordenes")} className="mt-1 flex h-10 items-center justify-center rounded-xl bg-slate-900 text-xs font-bold text-white hover:bg-blue-900">Gestionar órdenes de alistamiento</button>
+                                </div>
+                            </Panel>
+                        </>}
+                    </main>
+                </>}
             </div>
+
+            <Modal abierto={modal === "vencimientos"} titulo="Lotes vencidos y próximos a vencer" subtitulo="Existencias disponibles con vencimiento hasta 60 días" onClose={() => setModal(null)}>
+                <Tabla columnas={[
+                    { key: "producto", label: "Producto", render: (fila) => <div><p className="font-bold">{fila.producto}</p><p className="text-xs text-slate-500">{fila.codigo} · Lote {fila.lote}</p></div> },
+                    { key: "bodega", label: "Bodega", render: (fila) => <div><p>{fila.bodega}</p><p className="text-xs text-slate-500">{fila.ubicacion || "Sin ubicación"}</p></div> },
+                    { key: "fecha", label: "Vencimiento", render: (fila) => <div><p>{fecha(fila.fechaVencimiento)}</p><p className={Number(fila.diasParaVencer) < 0 ? "text-xs font-bold text-red-600" : "text-xs font-bold text-amber-600"}>{Number(fila.diasParaVencer) < 0 ? `${Math.abs(fila.diasParaVencer)} días vencido` : `${fila.diasParaVencer} días`}</p></div> },
+                    { key: "cantidad", label: "Disponible", align: "right", render: (fila) => numero(fila.cantidadDisponible) },
+                ]} filas={alertas} />
+                <button type="button" onClick={() => { setModal(null); navegar?.("LotesVencimientosInventario"); }} className="mt-4 rounded-xl bg-blue-800 px-4 py-2 text-sm font-bold text-white">Abrir módulo de lotes</button>
+            </Modal>
+
+            <Modal abierto={modal === "bodegas"} titulo="Alertas por bodega" subtitulo="Concentración de mercancía vencida o próxima a vencer" onClose={() => setModal(null)}>
+                <Tabla columnas={[
+                    { key: "bodega", label: "Bodega" },
+                    { key: "vencidos", label: "Lotes vencidos", align: "right", render: (fila) => numero(fila.lotesVencidos) },
+                    { key: "proximos", label: "Por vencer", align: "right", render: (fila) => numero(fila.lotesPorVencer) },
+                    { key: "cantidad", label: "Cantidad comprometida", align: "right", render: (fila) => numero(fila.cantidadComprometida) },
+                ]} filas={data.inventario.alertasPorBodega} />
+            </Modal>
+
+            <Modal abierto={modal === "ordenes"} titulo="Órdenes de alistamiento" subtitulo="Estado consolidado de la operación" onClose={() => setModal(null)}>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{[["Total", ordenes.total], ["Por asignar", ordenes.pendientesAsignacion], ["Asignadas", ordenes.asignadas], ["En proceso", ordenes.enAlistamiento], ["Con pendientes", ordenes.conPendientes], ["Completas", ordenes.completas], ["En logística", ordenes.enLogistica]].map(([titulo, valor]) => <div key={titulo} className="rounded-xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs text-slate-500">{titulo}</p><p className="mt-1 text-2xl font-black text-slate-900">{numero(valor)}</p></div>)}</div>
+                <button type="button" onClick={() => { setModal(null); navegar?.("OrdenesAlistamientoInventario"); }} className="mt-4 rounded-xl bg-blue-800 px-4 py-2 text-sm font-bold text-white">Abrir órdenes</button>
+            </Modal>
+
+            <Modal abierto={modal === "despachos"} titulo="Detalle de despachos" subtitulo="Rutas, productos y actividad reciente" onClose={() => setModal(null)}>
+                <Tabla columnas={[{ key: "codigo", label: "Despacho" }, { key: "fecha", label: "Fecha", render: (fila) => fecha(fila.fechaDespacho) }, { key: "rutas", label: "Rutas", align: "right", render: (fila) => numero(fila.totalRutas) }, { key: "productos", label: "Productos", align: "right", render: (fila) => numero(fila.totalProductos) }, { key: "cantidad", label: "Cantidad", align: "right", render: (fila) => numero(fila.totalCantidad) }]} filas={data.ultimosDespachos} />
+            </Modal>
         </div>
     );
 };

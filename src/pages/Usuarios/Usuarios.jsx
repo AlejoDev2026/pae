@@ -2,7 +2,12 @@ import { useState, useEffect } from "react";
 import { ModalConfirmacion } from "../../components/modales/ModalConfirmacion";
 import { API_BASE } from "../../constants";
 
-import { FaSearch, FaTrash, FaTrashRestore } from "react-icons/fa";
+const parametrosSesion = () => {
+  const usuario = JSON.parse(localStorage.getItem("us") || "null");
+  return new URLSearchParams({ correoSesion: usuario?.correo || "", tokenSesion: localStorage.getItem("st") || "" }).toString();
+};
+
+import { FaEye, FaSearch, FaTrash, FaTrashRestore } from "react-icons/fa";
 import { FaPlus } from "react-icons/fa6";
 import { IoMenu } from "react-icons/io5";
 
@@ -19,6 +24,16 @@ export const Usuarios = ({
   // Función para cambiar la pagina actual
   const estadoPagina = (pagina) => navegar(pagina);
 
+  const crearUsuario = () => {
+    localStorage.removeItem("usuarioGestionId");
+    estadoPagina("DetalleUsuarios");
+  };
+
+  const verUsuario = (usuario) => {
+    localStorage.setItem("usuarioGestionId", String(usuario.id));
+    estadoPagina("DetalleUsuarios");
+  };
+
   // Estados para almacenar todos los usuarios y el filtro de busqueda de los mismos
   const [Usuarios, setUsuarios] = useState([]);
   const [busqueda, setBusqueda] = useState("");
@@ -26,7 +41,7 @@ export const Usuarios = ({
   // Función para obtener la información de todos los usuarios
   const obtenerUsuarios = async () => {
     try {
-      const url = `${API_BASE}usuarios/usuarios.php?case=1&rol=1`;
+      const url = `${API_BASE}usuarios/usuarios.php?case=1&${parametrosSesion()}`;
 
       const res = await fetch(url, {
         method: "GET",
@@ -64,6 +79,7 @@ export const Usuarios = ({
       (item.documento && item.documento.toLowerCase().includes(termino)) ||
       (item.correo && item.correo.toLowerCase().includes(termino)) ||
       (item.telefono && item.telefono.toLowerCase().includes(termino)) ||
+      (item.rol && item.rol.toLowerCase().includes(termino)) ||
       (item.estado && item.estado.toLowerCase().includes(termino))
     );
   });
@@ -82,7 +98,7 @@ export const Usuarios = ({
   // Función para cambiar el estado de un usuario seleccionado
   const cambiarEstadoUsuario = async () => {
     try {
-      let url = `${API_BASE}usuarios/usuarios.php?case=3&id=${usuarioSeleccionado.id}`;
+      let url = `${API_BASE}usuarios/usuarios.php?case=3&id=${usuarioSeleccionado.id}&${parametrosSesion()}`;
 
       const res = await fetch(url);
       const response = await res.json();
@@ -131,7 +147,7 @@ export const Usuarios = ({
                 <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="text"
-                  placeholder="Buscar por nombre, cédula, correo, teléfono o estado..."
+                  placeholder="Buscar por nombre, correo, teléfono, rol o estado..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   className="border-1 border-gray-400 rounded-md p-2 pl-9 w-full text-[0.9rem] focus:outline-none focus:ring-1 focus:border-[#193CB8]"
@@ -142,7 +158,7 @@ export const Usuarios = ({
             {/* Botón Agregar */}
             <button
               className="h-full px-4 text-[calc(0.4rem+0.4vw)] bg-transparent border text-blue-800 border-blue-800 hover:text-white rounded-lg hover:bg-blue-800 hover:scale-[1.05] transition-all duration-300 cursor-pointer flex items-center justify-center"
-              onClick={() => estadoPagina("DetalleUsuarios")}
+              onClick={crearUsuario}
             >
               <span className="hidden lg:inline font-semibold">Agregar Usuario</span>
 
@@ -154,10 +170,11 @@ export const Usuarios = ({
           <div className="hidden w-full lg:flex flex-col mb-4 overflow-hidden">
             {/* Encabezado */}
             <div className="w-full flex flex-row bg-[#ECEEF1] p-3 rounded-lg font-semibold text-gray-700">
+              <span className="w-[25%]">Nombre</span>
+              <span className="w-[25%]">Correo</span>
+              <span className="w-[15%]">Teléfono</span>
+              <span className="w-[15%]">Rol</span>
               <span className="w-[10%] text-center">Estado</span>
-              <span className="w-[30%]">Nombre</span>
-              <span className="w-[30%]">Correo</span>
-              <span className="w-[20%]">Teléfono</span>
               <span className="w-[10%] text-center">Acción</span>
             </div>
 
@@ -169,28 +186,41 @@ export const Usuarios = ({
                     key={item.id}
                     className="flex flex-row justify-between items-center bg-white border border-gray-200 rounded-lg shadow-sm mt-2 p-3 hover:bg-gray-50"
                   >
-                    {/* Estado */}
-                    <div className="w-[10%] flex justify-center relative group px-3">
-                      <div
-                        className="w-[12px] h-[12px] rounded-full cursor-pointer"
-                        style={{ backgroundColor: item.colorEstado || "#FBBF24" }}
-                      ></div>
-
-                      <Tooltip color={item.colorEstado} text={item.estado} className='-top-8' />
-                    </div>
-
                     {/* Nombre */}
-                    <span className="w-[30%] text-gray-700 truncate pr-4" title={item.nombre}>{item.nombre}</span>
+                    <span className="w-[25%] text-gray-700 truncate pr-4" title={item.nombre}>{item.nombre}</span>
 
                     {/* Correo */}
-                    <span className="w-[30%] text-gray-700 truncate pr-4" title={item.correo}>{item.correo}</span>
+                    <span className="w-[25%] text-gray-700 truncate pr-4" title={item.correo}>{item.correo}</span>
 
                     {/* Teléfono */}
-                    <span className="w-[20%] text-gray-700">{item.telefono}</span>
+                    <span className="w-[15%] truncate pr-3 text-gray-700">{item.telefono}</span>
+
+                    {/* Rol */}
+                    <div className="w-[15%] pr-3">
+                      <span className="inline-flex max-w-full truncate rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-800" title={item.rol || "Sin rol"}>
+                        {item.rol || "Sin rol"}
+                      </span>
+                    </div>
+
+                    {/* Estado */}
+                    <div className="w-[10%] flex justify-center px-2">
+                      <span className={`inline-flex min-w-[82px] items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${Number(item.idEstado) === 1 ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700"}`}>
+                        <span className={`h-2 w-2 rounded-full ${Number(item.idEstado) === 1 ? "bg-emerald-500" : "bg-red-500"}`} />
+                        {item.estado || (Number(item.idEstado) === 1 ? "Activo" : "Suspendido")}
+                      </span>
+                    </div>
 
                     {/* Acción */}
                     <div className="w-[10%] flex justify-center">
-                      {item.idEstado == 2 ? (
+                      <button
+                        type="button"
+                        onClick={() => verUsuario(item)}
+                        className="mr-1 flex rounded-full p-2 text-blue-700 hover:bg-blue-100"
+                        title="Ver y editar usuario"
+                      >
+                        <FaEye className="text-xl" />
+                      </button>
+                      {Number(item.idEstado) === 1 ? (
                         <div
                           className="hover:bg-red-100 p-2 rounded-full cursor-pointer relative group flex justify-center"
                           onClick={() => abrirModalConfirmar(item)}
@@ -233,13 +263,19 @@ export const Usuarios = ({
                 <div key={item.id} className="rounded-lg shadow-lg p-4 flex flex-col gap-3 border border-slate-200">
                   {/* Estado */}
                   <div className="w-full flex items-center justify-between">
-                    <div
-                      className="w-[12px] h-[12px] rounded-full cursor-pointer"
-                      style={{ backgroundColor: item.colorEstado || "#FBBF24" }}
-                      title={item.estado} // tooltip
-                    ></div>
+                    <span
+                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold ${Number(item.idEstado) === 1
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        : "border-red-200 bg-red-50 text-red-700"
+                        }`}
+                    >
+                      <span className={`h-2 w-2 rounded-full ${Number(item.idEstado) === 1 ? "bg-emerald-500" : "bg-red-500"}`} />
+                      {item.estado || (Number(item.idEstado) === 1 ? "Activo" : "Suspendido")}
+                    </span>
 
-                    {item.idEstado == 2 ? (
+                    <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => verUsuario(item)} className="rounded-full p-2 text-blue-700 hover:bg-blue-100" title="Ver y editar usuario"><FaEye /></button>
+                    {Number(item.idEstado) === 1 ? (
                       <div
                         className="hover:bg-red-100 p-2 rounded-full cursor-pointer"
                         onClick={() => abrirModalConfirmar(item)}
@@ -260,12 +296,14 @@ export const Usuarios = ({
                         />
                       </div>
                     )}
+                    </div>
                   </div>
 
                   <div className="flex flex-col">
                     <span className="truncate font-semibold">{item.nombre}</span>
                     <span className="truncate text-slate-400">{item.correo}</span>
                     <span className="truncate text-slate-400">{item.telefono}</span>
+                    <span className="mt-2 inline-flex w-fit max-w-full truncate rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">{item.rol || "Sin rol"}</span>
                   </div>
                 </div>
               ))
@@ -286,7 +324,7 @@ export const Usuarios = ({
         accion={cambiarEstadoUsuario}
       >
         <span className="text-center text-xl">
-          ¿Esta seguro que desea {usuarioSeleccionado?.idEstado == 2 ? 'suspender' : 'restaurar'} de este usuario?
+          ¿Está seguro que desea {Number(usuarioSeleccionado?.idEstado) === 1 ? 'suspender' : 'activar'} este usuario?
         </span>
         <div className="mt-3 text-lg text-center font-bold flex flex-col">
           <span>{usuarioSeleccionado?.nombre}</span>
