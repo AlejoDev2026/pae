@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . "/InventarioEntradasHelper.php";
+require_once __DIR__ . "/EntradaCompraHelper.php";
 
 try {
     $idDocumento = intval(inv_parametro("idDocumento", inv_parametro("idEntrada", inv_parametro("id", 0))));
@@ -161,6 +162,24 @@ try {
         ];
     }, $detalles);
 
+    if (($documentoFila['tipoOrigen'] ?? '') === 'ORDEN_COMPRA') {
+        $relacion = ecConsulta('SELECT idOrdenCompra FROM InventarioEntradaCompra WHERE idDocumento = ?', [$idDocumento]);
+        if ($relacion) {
+            $documento['ordenCompra'] = ecOrden($relacion[0]['idOrdenCompra']);
+            $productosCompra = ecProductos($relacion[0]['idOrdenCompra']);
+            $documento['compraConPendientes'] = count(array_filter($productosCompra, function ($p) { return $p['cantidadPendiente'] > 0; })) > 0;
+            $porId = array_column($productosCompra, null, 'id');
+            $vinculos = ecConsulta('SELECT idDocumentoDetalle,idOrdenCompraDetalle FROM InventarioEntradaCompraDetalle WHERE idDocumento = ?', [$idDocumento]);
+            $porDetalle = array_column($vinculos, 'idOrdenCompraDetalle', 'idDocumentoDetalle');
+            foreach ($detalleData as &$item) {
+                $idCompraDetalle = $porDetalle[$item['idDocumentoDetalle']] ?? null;
+                $item['idOrdenCompraDetalle'] = $idCompraDetalle;
+                $item['cantidadPedida'] = $porId[$idCompraDetalle]['cantidad'] ?? null;
+                $item['cantidadPendiente'] = $porId[$idCompraDetalle]['cantidadPendiente'] ?? null;
+            }
+            unset($item);
+        }
+    }
     $movimientos = inv_obtener_filas("
         SELECT
             m.id,

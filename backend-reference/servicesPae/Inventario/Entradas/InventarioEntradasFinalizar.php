@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . "/InventarioEntradasHelper.php";
+require_once __DIR__ . "/EntradaCompraHelper.php";
 
 try {
     if ($_SERVER["REQUEST_METHOD"] !== "POST") {
@@ -58,6 +59,16 @@ try {
 
     if (inv_contar_movimientos_documento($idDocumento) > 0) {
         throw new Exception("Esta entrada ya tiene movimientos registrados");
+    }
+
+    if (($documento['tipoOrigen'] ?? '') === 'ORDEN_COMPRA') {
+        $sesionCompra = ecPermiso($input);
+        $idUsuarioFinaliza = $sesionCompra['id'];
+        $relacion = ecConsulta('SELECT idOrdenCompra FROM InventarioEntradaCompra WHERE idDocumento = ?', [$idDocumento]);
+        if (!$relacion) throw new InvalidArgumentException('La entrada perdió su relación con la compra.');
+        $recepcion = ecConsulta('SELECT dd.idProducto, dd.cantidadSolicitada AS cantidad, r.idOrdenCompraDetalle
+          FROM InventarioDocumentoDetalle dd LEFT JOIN InventarioEntradaCompraDetalle r ON r.idDocumentoDetalle = dd.id WHERE dd.idDocumento = ?', [$idDocumento]);
+        ecValidar($relacion[0]['idOrdenCompra'], $recepcion);
     }
 
     if ($idOperador <= 0) {
@@ -343,7 +354,7 @@ try {
 
     inv_responder(
         "no",
-        "Error finalizando entrada de inventario",
+        $e instanceof InvalidArgumentException ? $e->getMessage() : "Error finalizando entrada de inventario",
         [],
         ["error" => $e->getMessage()],
         500

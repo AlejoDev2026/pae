@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_BASE } from "../../constants";
 import { ExcelInformeRutasEspecialesExporter } from "../../informes/exporters/ExcelInformeRutasEspecialesExporter";
 import {
@@ -335,6 +335,9 @@ const construirDespachoConDatosVisuales = ({
 
 
 export const InformesDespacho = ({ setSidebar, navegar }) => {
+    // Main renueva esta función al validar la sesión. Eso no cambia el despacho.
+    const navegarRef = useRef(navegar);
+    useEffect(() => { navegarRef.current = navegar; }, [navegar]);
     const abrirMenu = () => setSidebar?.(true);
     const estadoPagina = (pagina) => navegar?.(pagina);
     const idDespacho = localStorage.getItem("idDespachoDetalle");
@@ -418,7 +421,7 @@ export const InformesDespacho = ({ setSidebar, navegar }) => {
         const obtenerDetalle = async () => {
             if (!idDespacho) {
                 toast.error("No se encontró el despacho seleccionado");
-                navegar?.("Despachos");
+                navegarRef.current?.("Despachos");
                 return;
             }
 
@@ -457,7 +460,7 @@ export const InformesDespacho = ({ setSidebar, navegar }) => {
         };
 
         obtenerDetalle();
-    }, [idDespacho, navegar]);
+    }, [idDespacho]);
 
     useEffect(() => {
         const obtenerInformeRutaFormato = async () => {
@@ -731,7 +734,6 @@ export const InformesDespacho = ({ setSidebar, navegar }) => {
         idDespacho,
         informeActivo,
         categoriaCadenaFrioSeleccionada,
-        categoriasCadenaFrioDisponibles,
     ]);
 
     useEffect(() => {

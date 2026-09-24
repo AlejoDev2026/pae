@@ -1,4 +1,5 @@
 const MAPA_PAGINAS = {
+  OrdenesCompraInventario: "compras.cargar",
   DashboardGeneral: "dashboard.ver",
   Usuarios: "usuarios.administrar",
   DetalleUsuarios: "usuarios.administrar",

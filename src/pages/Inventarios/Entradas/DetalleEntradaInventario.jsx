@@ -35,9 +35,14 @@ export const DetalleEntradaInventario = ({
     navegar,
 }) => {
     const abrirMenu = () => setSidebar(true);
+    const navegarRef = useRef(navegar);
+    useEffect(() => {
+        navegarRef.current = navegar;
+    }, [navegar]);
+
     const estadoPagina = useCallback(
-        (pagina) => navegar(pagina),
-        [navegar]
+        (pagina) => navegarRef.current(pagina),
+        []
     );
 
     const consultaDetalleRef = useRef(false);
@@ -336,7 +341,7 @@ export const DetalleEntradaInventario = ({
         const estado = obtenerEstadoProceso();
 
         if (estado === "FINALIZADA") {
-            return "Finalizada";
+            return entrada?.compraConPendientes ? "Finalizada con pendientes" : "Finalizada";
         }
 
         if (estado === "ANULADA") {
@@ -609,6 +614,8 @@ export const DetalleEntradaInventario = ({
                         idDocumento,
                         idEntrada: idDocumento,
                         idUsuario: usuarioSesion.idUsuario,
+                        correoSesion: JSON.parse(localStorage.getItem("us") || "{}")?.correo || "",
+                        tokenSesion: localStorage.getItem("st") || "",
                         idUsuarioFinaliza:
                             usuarioSesion.idUsuario,
                         idOperador:

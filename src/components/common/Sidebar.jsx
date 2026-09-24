@@ -178,6 +178,12 @@ export const Sidebar = ({ isOpen, setIsOpen, pagina, navegar }) => {
         ],
       },
       {
+        id: "ordenes-compra",
+        label: "Órdenes de compra",
+        pagina: "OrdenesCompraInventario",
+        icono: <FaClipboardList />,
+      },
+      {
         id: "inventarios",
         label: "Inventarios",
         icono: <FaBox />,

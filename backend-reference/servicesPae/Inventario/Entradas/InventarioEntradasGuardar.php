@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . "/InventarioEntradasHelper.php";
+require_once __DIR__ . "/EntradaCompraHelper.php";
 
 try {
     if ($_SERVER["REQUEST_METHOD"] !== "POST") {
@@ -15,6 +16,13 @@ try {
     $idUsuarioRegistro = intval($input["idUsuarioRegistro"] ?? $input["idUsuario"] ?? 0);
     $idOperador = intval($input["idOperador"] ?? 0);
     $detalles = $input["detalles"] ?? $input["productos"] ?? [];
+    $idOrdenCompra = (int)($input['idOrdenCompra'] ?? 0);
+    // También exigir sesión si se intenta quitar la relación de un borrador existente.
+    $origenActual = $idDocumento > 0 ? inv_obtener_fila("SELECT tipoOrigen FROM InventarioDocumentos WHERE id = $idDocumento") : null;
+    if ($idOrdenCompra || ($origenActual['tipoOrigen'] ?? '') === 'ORDEN_COMPRA') {
+        $sesionCompra = ecPermiso($input);
+        $idUsuarioRegistro = $sesionCompra['id'];
+    }
 
     if ($idTipoDocumento <= 0) {
         $tipoDocumentoDefault = inv_obtener_tipo_documento_entrada_mercancia();
@@ -51,6 +59,7 @@ try {
             SELECT
                 id,
                 consecutivo,
+                tipoOrigen,
                 estadoProceso
             FROM InventarioDocumentos
             WHERE id = $idDocumento
@@ -71,6 +80,8 @@ try {
         }
 
         $consecutivo = $documentoActual["consecutivo"];
+        if (($documentoActual['tipoOrigen'] ?? '') !== ($origenActual['tipoOrigen'] ?? '')) throw new InvalidArgumentException('La entrada cambió mientras se editaba. Vuelve a consultarla.');
+        if ($idOrdenCompra > 0) ecValidar($idOrdenCompra, $detalles);
         $modo = "ACTUALIZADO";
 
         $sqlDocumento = "
@@ -97,6 +108,10 @@ try {
             throw new Exception($conexion->error);
         }
 
+        if (($origenActual['tipoOrigen'] ?? '') === 'ORDEN_COMPRA') {
+            ecConsulta('DELETE FROM InventarioEntradaCompraDetalle WHERE idDocumento = ?', [$idDocumento]);
+            ecConsulta('DELETE FROM InventarioEntradaCompra WHERE idDocumento = ?', [$idDocumento]);
+        }
         if (!$conexion->query("
             DELETE dll
             FROM InventarioDocumentoDetalleLotes dll
@@ -114,6 +129,7 @@ try {
             throw new Exception($conexion->error);
         }
     } else {
+        if ($idOrdenCompra > 0) ecValidar($idOrdenCompra, $detalles);
         $consecutivo = inv_generar_consecutivo_entrada();
 
         $sqlDocumento = "
@@ -163,6 +179,10 @@ try {
     }
 
     $totalCantidad = 0;
+    if ($idOrdenCompra > 0) {
+        ecConsulta('INSERT INTO InventarioEntradaCompra (idDocumento,idOrdenCompra) VALUES (?,?)', [$idDocumento,$idOrdenCompra]);
+        ecConsulta("UPDATE InventarioDocumentos SET tipoOrigen = 'ORDEN_COMPRA' WHERE id = ?", [$idDocumento]);
+    }
     $totalProductos = 0;
     $detallesGuardados = [];
 
@@ -244,6 +264,7 @@ try {
         }
 
         $idDocumentoDetalle = intval($conexion->insert_id);
+        if ($idOrdenCompra > 0) ecConsulta('INSERT INTO InventarioEntradaCompraDetalle (idDocumentoDetalle,idDocumento,idOrdenCompraDetalle) VALUES (?,?,?)', [$idDocumentoDetalle,$idDocumento,$detalle['idOrdenCompraDetalle']]);
 
         $sqlDetalleLote = "
             INSERT INTO InventarioDocumentoDetalleLotes
@@ -322,7 +343,7 @@ try {
 
     inv_responder(
         "no",
-        "Error guardando entrada de inventario",
+        $e instanceof InvalidArgumentException ? $e->getMessage() : "Error guardando entrada de inventario",
         [],
         ["error" => $e->getMessage()],
         500

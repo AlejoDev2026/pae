@@ -15,6 +15,7 @@ import {
     FaWarehouse,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import * as XLSX from "xlsx";
 
 const API_BASE =
     "https://app.accionporcolombia.com/servicesPae/Inventario/InventarioInicial/";
@@ -141,10 +142,16 @@ const hoyIso = () => {
 export const CrearInventarioInicial = ({ setSidebar, navegar }) => {
     const usuario = useMemo(() => obtenerUsuarioSesion(), []);
     const inputBusquedaRef = useRef(null);
+    const inputArchivoRef = useRef(null);
     const [cargando, setCargando] = useState(true);
+    const [detalleCargado, setDetalleCargado] = useState(false);
+    const [cargandoDetalle, setCargandoDetalle] = useState(false);
     const [guardando, setGuardando] = useState(false);
     const [buscando, setBuscando] = useState(false);
     const [creandoLote, setCreandoLote] = useState(false);
+    const [cargandoArchivo, setCargandoArchivo] = useState(false);
+    const [resultadoCargaArchivo, setResultadoCargaArchivo] = useState(null);
+    const [modalErroresCarga, setModalErroresCarga] = useState(false);
     const [tipoDocumento, setTipoDocumento] = useState(null);
     const [operador, setOperador] = useState(null);
     const [bodegas, setBodegas] = useState([]);
@@ -227,59 +234,71 @@ export const CrearInventarioInicial = ({ setSidebar, navegar }) => {
     const cargarDetalle = useCallback(async () => {
         if (!idDocumento) return;
 
-        const params = new URLSearchParams({
-            idDocumento: String(idDocumento),
-            t: String(Date.now()),
-        });
-        const resultado = await consumirJson(
-            `${API_BASE}InventarioInicialDetalle.php?${params}`
-        );
-        const documento = resultado?.data?.documento || {};
+        setCargandoDetalle(true);
 
-        if (
-            documento.editable === false ||
-            String(documento.estadoProceso).toUpperCase() !== "BORRADOR"
-        ) {
-            localStorage.removeItem("inventarioInicialEditar");
-            toast.warning("Esta carga ya no se puede editar.");
-            navegar("InventarioInicial");
-            return;
+        try {
+            const params = new URLSearchParams({
+                idDocumento: String(idDocumento),
+                t: String(Date.now()),
+            });
+            const resultado = await consumirJson(
+                `${API_BASE}InventarioInicialDetalle.php?${params}`
+            );
+            const documento = resultado?.data?.documento || {};
+
+            if (
+                documento.editable === false ||
+                String(documento.estadoProceso).toUpperCase() !== "BORRADOR"
+            ) {
+                localStorage.removeItem("inventarioInicialEditar");
+                toast.warning("Esta carga ya no se puede editar.");
+                navegar("InventarioInicial");
+                return;
+            }
+
+            const lista = Array.isArray(resultado?.data?.detalles)
+                ? resultado.data.detalles
+                : [];
+            const primerDetalle = lista[0] || {};
+
+            setForm({
+                fechaDocumento: documento.fechaDocumento || hoyIso(),
+                idBodega: String(primerDetalle.idBodega || ""),
+                idUbicacion: String(primerDetalle.idUbicacion || ""),
+                observacion: documento.observacion || "",
+            });
+            setDetalles(
+                lista.map((detalle) => ({
+                    tempId: `edit-${detalle.idDocumentoDetalle}`,
+                    idProducto: Number(detalle.idProducto),
+                    codigo: detalle.codigoProducto || "",
+                    descripcion: detalle.descripcion || "Producto",
+                    unidad: detalle.unidad || "UND",
+                    cantidad: detalle.cantidad,
+                    manejaLote: Number(detalle.manejaLote || 0) === 1,
+                    manejaVencimiento:
+                        Number(detalle.manejaVencimiento || 0) === 1,
+                    idLote: Number(detalle.idLote || 0) || null,
+                    lote: detalle.idLote
+                        ? {
+                            idLote: Number(detalle.idLote),
+                            lote: detalle.lote,
+                            fechaVencimiento: detalle.fechaVencimiento,
+                        }
+                        : null,
+                    idUbicacion: Number(detalle.idUbicacion),
+                    observacion: detalle.observacion || "",
+                }))
+            );
+            setDetalleCargado(true);
+        } catch (error) {
+            console.error("Error cargando inventario inicial para edici\u00f3n:", error);
+            toast.error(
+                error?.message || "No fue posible cargar el inventario inicial."
+            );
+        } finally {
+            setCargandoDetalle(false);
         }
-
-        const lista = Array.isArray(resultado?.data?.detalles)
-            ? resultado.data.detalles
-            : [];
-        const primerDetalle = lista[0] || {};
-
-        setForm({
-            fechaDocumento: documento.fechaDocumento || hoyIso(),
-            idBodega: String(primerDetalle.idBodega || ""),
-            idUbicacion: String(primerDetalle.idUbicacion || ""),
-            observacion: documento.observacion || "",
-        });
-        setDetalles(
-            lista.map((detalle) => ({
-                tempId: `edit-${detalle.idDocumentoDetalle}`,
-                idProducto: Number(detalle.idProducto),
-                codigo: detalle.codigoProducto || "",
-                descripcion: detalle.descripcion || "Producto",
-                unidad: detalle.unidad || "UND",
-                cantidad: detalle.cantidad,
-                manejaLote: Number(detalle.manejaLote || 0) === 1,
-                manejaVencimiento:
-                    Number(detalle.manejaVencimiento || 0) === 1,
-                idLote: Number(detalle.idLote || 0) || null,
-                lote: detalle.idLote
-                    ? {
-                        idLote: Number(detalle.idLote),
-                        lote: detalle.lote,
-                        fechaVencimiento: detalle.fechaVencimiento,
-                    }
-                    : null,
-                idUbicacion: Number(detalle.idUbicacion),
-                observacion: detalle.observacion || "",
-            }))
-        );
     }, [idDocumento, navegar]);
 
     const cargarFormulario = useCallback(async () => {
@@ -342,9 +361,7 @@ export const CrearInventarioInicial = ({ setSidebar, navegar }) => {
             setBodegas(listaBodegas);
             setUbicaciones(listaUbicaciones);
 
-            if (modoEdicion) {
-                await cargarDetalle();
-            } else {
+            if (!idDocumento) {
                 const disponibles = listaBodegas.filter((item) =>
                     puedeCrearEnBodega(item)
                 );
@@ -370,11 +387,30 @@ export const CrearInventarioInicial = ({ setSidebar, navegar }) => {
             setCargando(false);
             setTimeout(() => inputBusquedaRef.current?.focus(), 150);
         }
-    }, [cargarDetalle, modoEdicion, usuario?.idUsuario]);
+    }, [idDocumento, usuario?.idUsuario]);
 
     useEffect(() => {
         cargarFormulario();
     }, [cargarFormulario]);
+
+    useEffect(() => {
+        if (
+            cargando ||
+            cargandoDetalle ||
+            detalleCargado ||
+            !idDocumento
+        ) {
+            return;
+        }
+
+        cargarDetalle();
+    }, [
+        cargando,
+        cargandoDetalle,
+        detalleCargado,
+        idDocumento,
+        cargarDetalle,
+    ]);
 
     useEffect(() => {
         if (!form.idBodega) return;
@@ -603,6 +639,259 @@ export const CrearInventarioInicial = ({ setSidebar, navegar }) => {
             prev.map((detalle) =>
                 detalle.tempId === tempId ? { ...detalle, ...cambios } : detalle
             )
+        );
+    };
+
+    const cargarFormatoExcel = async (event) => {
+        const archivo = event.target.files?.[0];
+
+        if (!archivo) return;
+
+        if (!form.idBodega || !form.idUbicacion) {
+            toast.warning("Seleccione primero la bodega y la ubicación general.");
+            event.target.value = "";
+            return;
+        }
+
+        setCargandoArchivo(true);
+        setResultadoCargaArchivo(null);
+        setModalErroresCarga(false);
+
+        try {
+            const buffer = await archivo.arrayBuffer();
+            const libro = XLSX.read(buffer, { type: "array" });
+            const hoja = libro.Sheets[libro.SheetNames[0]];
+            const filas = XLSX.utils.sheet_to_json(hoja, {
+                header: 1,
+                defval: "",
+                raw: false,
+            });
+            const encabezados = filas[0] || [];
+            const indiceCodigo = encabezados.findIndex(
+                (item) => normalizarEncabezadoExcel(item) === "ITEM"
+            );
+            const indiceCantidad = encabezados.findIndex(
+                (item) => normalizarEncabezadoExcel(item) === "CONTEO FISICO"
+            );
+            const indiceProducto = encabezados.findIndex(
+                (item) => normalizarEncabezadoExcel(item) === "PRODUCTO"
+            );
+
+            if (indiceCodigo < 0 || indiceCantidad < 0) {
+                throw new Error(
+                    "El formato debe incluir las columnas ITEM y CONTEO FISICO."
+                );
+            }
+
+            const errores = [];
+            const cantidades = new Map();
+
+            filas.slice(1).forEach((fila, indice) => {
+                const numeroFila = indice + 2;
+                const codigo = normalizarCodigoProducto(fila[indiceCodigo]);
+                const cantidad = cantidadExcel(fila[indiceCantidad]);
+                const productoArchivo = String(
+                    indiceProducto >= 0 ? fila[indiceProducto] : ""
+                ).trim();
+
+                if (!codigo && !String(fila[indiceCantidad] ?? "").trim()) return;
+
+                if (!codigo) {
+                    errores.push({
+                        fila: numeroFila,
+                        codigo: "Sin código",
+                        producto: productoArchivo || "Sin nombre",
+                        cantidad: fila[indiceCantidad] || "Sin cantidad",
+                        motivo: "Falta el ITEM.",
+                    });
+                } else if (!Number.isFinite(cantidad) || cantidad <= 0) {
+                    errores.push({
+                        fila: numeroFila,
+                        codigo,
+                        producto: productoArchivo || "Sin nombre",
+                        cantidad: fila[indiceCantidad] || "Sin cantidad",
+                        motivo: "El conteo físico no es válido.",
+                    });
+                } else {
+                    const anterior = cantidades.get(codigo) || {
+                        cantidad: 0,
+                        producto: productoArchivo,
+                        filas: [],
+                    };
+                    cantidades.set(codigo, {
+                        cantidad: Number(anterior.cantidad) + cantidad,
+                        producto: anterior.producto || productoArchivo,
+                        filas: [...anterior.filas, numeroFila],
+                    });
+                }
+            });
+
+            if (cantidades.size === 0) {
+                throw new Error("No se encontraron productos válidos para cargar.");
+            }
+
+            const encontrados = await Promise.all(
+                [...cantidades.keys()].map(async (codigo) => {
+                    try {
+                        const params = new URLSearchParams({
+                            q: codigo,
+                            limite: "20",
+                            t: String(Date.now()),
+                        });
+                        const resultado = await consumirJson(
+                            `${API_PRODUCTOS}InventarioProductosBuscar.php?${params}`
+                        );
+                        const productos = Array.isArray(resultado.data)
+                            ? resultado.data
+                            : [];
+                        const producto = productos.find(
+                            (item) =>
+                                normalizarCodigoProducto(
+                                    item.codigo || item.codigoInterno
+                                ) === codigo
+                        );
+
+                        return { codigo, producto };
+                    } catch {
+                        return { codigo, producto: null };
+                    }
+                })
+            );
+
+            const productosParaAgregar = [];
+
+            encontrados.forEach(({ codigo, producto }) => {
+                if (!producto) {
+                    const registro = cantidades.get(codigo);
+                    errores.push({
+                        fila: registro.filas.join(", "),
+                        codigo,
+                        producto: registro.producto || "Sin nombre",
+                        cantidad: registro.cantidad,
+                        motivo: "No existe en el catálogo activo.",
+                    });
+                    return;
+                }
+
+                productosParaAgregar.push({
+                    producto,
+                    cantidad: cantidades.get(codigo).cantidad,
+                });
+            });
+
+            setDetalles((prev) => {
+                const siguiente = [...prev];
+
+                productosParaAgregar.forEach(({ producto, cantidad }) => {
+                    const idProducto = idDe(producto, "idProducto", "id");
+                    const existente = siguiente.find(
+                        (detalle) =>
+                            Number(detalle.idProducto) === idProducto &&
+                            !detalle.idLote
+                    );
+
+                    if (existente) {
+                        existente.cantidad =
+                            Number(existente.cantidad || 0) + Number(cantidad);
+                        return;
+                    }
+
+                    siguiente.push({
+                        tempId: `excel-${Date.now()}-${idProducto}-${Math.random()
+                            .toString(36)
+                            .slice(2)}`,
+                        idProducto,
+                        codigo: producto.codigo || producto.codigoInterno || "",
+                        descripcion:
+                            producto.descripcion || producto.nombre || "Producto",
+                        unidad: producto.unidadBaseInventario || "UND",
+                        cantidad: Number(cantidad),
+                        manejaLote: Number(producto.manejaLote || 0) === 1,
+                        manejaVencimiento:
+                            Number(
+                                producto.manejaVencimiento ??
+                                    producto.requiereFechaVencimiento ??
+                                    0
+                            ) === 1,
+                        idLote: null,
+                        lote: null,
+                        idUbicacion: Number(form.idUbicacion),
+                        observacion: "Cargado desde formato de conteo físico.",
+                    });
+                });
+
+                return siguiente;
+            });
+
+            setResultadoCargaArchivo({
+                agregados: productosParaAgregar.length,
+                errores,
+            });
+
+            if (productosParaAgregar.length > 0) {
+                toast.success(
+                    `${productosParaAgregar.length} producto(s) agregado(s) desde el formato.`
+                );
+            }
+
+            if (errores.length > 0) {
+                toast.warning(
+                    `${errores.length} registro(s) requieren revisión.`
+                );
+            }
+        } catch (error) {
+            console.error("Error cargando formato de inventario inicial:", error);
+            toast.error(
+                error?.message || "No fue posible leer el formato de inventario."
+            );
+        } finally {
+            setCargandoArchivo(false);
+            event.target.value = "";
+        }
+    };
+
+    const exportarProductosPendientes = () => {
+        const errores = resultadoCargaArchivo?.errores || [];
+
+        if (errores.length === 0) {
+            toast.info("No hay productos pendientes para exportar.");
+            return;
+        }
+
+        const filas = errores.map((error) => {
+            const registro = typeof error === "object" ? error : {};
+
+            return {
+                ITEM:
+                    registro.codigo && registro.codigo !== "Sin código"
+                        ? registro.codigo
+                        : "",
+                PRODUCTO:
+                    registro.producto && registro.producto !== "Sin nombre"
+                        ? registro.producto
+                        : "",
+                "CONTEO FISICO":
+                    typeof registro.cantidad === "number"
+                        ? registro.cantidad
+                        : "",
+            };
+        });
+        const hoja = XLSX.utils.json_to_sheet(filas, {
+            header: ["ITEM", "PRODUCTO", "CONTEO FISICO"],
+        });
+        hoja["!cols"] = [
+            { wch: 18 },
+            { wch: 55 },
+            { wch: 18 },
+        ];
+
+        const libro = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(libro, hoja, "Hoja1");
+        const fecha = new Date().toISOString().slice(0, 10);
+
+        XLSX.writeFile(
+            libro,
+            `Productos_pendientes_inventario_inicial_${fecha}.xlsx`
         );
     };
 
@@ -1040,6 +1329,48 @@ export const CrearInventarioInicial = ({ setSidebar, navegar }) => {
                                                     Buscar
                                                 </button>
                                             </div>
+                                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                                <input
+                                                    ref={inputArchivoRef}
+                                                    type="file"
+                                                    accept=".xlsx,.xls"
+                                                    onChange={cargarFormatoExcel}
+                                                    className="hidden"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => inputArchivoRef.current?.click()}
+                                                    disabled={
+                                                        cargandoArchivo ||
+                                                        !form.idBodega ||
+                                                        !form.idUbicacion
+                                                    }
+                                                    className="h-10 px-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-800 font-semibold text-sm flex items-center gap-2 disabled:opacity-50"
+                                                >
+                                                    {cargandoArchivo ? (
+                                                        <FaSyncAlt className="animate-spin" />
+                                                    ) : (
+                                                        <FaPlus />
+                                                    )}
+                                                    {cargandoArchivo
+                                                        ? "Cargando formato..."
+                                                        : "Cargar formato Excel"}
+                                                </button>
+                                                {resultadoCargaArchivo?.errores?.length > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setModalErroresCarga(true)}
+                                                        className="h-10 w-10 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 flex items-center justify-center hover:bg-amber-100"
+                                                        title="Ver registros por revisar"
+                                                        aria-label="Ver registros por revisar de la carga"
+                                                    >
+                                                        <FaExclamationTriangle />
+                                                    </button>
+                                                )}
+                                                <p className="text-xs text-slate-500">
+                                                    Columnas requeridas: ITEM y CONTEO FISICO.
+                                                </p>
+                                            </div>
                                         </div>
 
                                         <div className="p-4">
@@ -1238,6 +1569,97 @@ export const CrearInventarioInicial = ({ setSidebar, navegar }) => {
                     </div>
                 </article>
             </div>
+
+            {modalErroresCarga && resultadoCargaArchivo?.errores?.length > 0 && (
+                <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
+                    <button
+                        type="button"
+                        className="absolute inset-0 bg-slate-950/60"
+                        onClick={() => setModalErroresCarga(false)}
+                        aria-label="Cerrar detalle de registros por revisar"
+                    />
+                    <section className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl bg-white shadow-2xl flex flex-col">
+                        <header className="flex items-start justify-between gap-4 px-5 py-4 border-b border-slate-200">
+                            <div>
+                                <div className="flex items-center gap-2 text-amber-700">
+                                    <FaExclamationTriangle />
+                                    <h2 className="font-bold text-slate-900">
+                                        Registros por revisar
+                                    </h2>
+                                </div>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    Estos registros no fueron agregados al inventario inicial.
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={exportarProductosPendientes}
+                                    className="h-9 px-3 rounded-xl bg-emerald-700 text-white text-sm font-semibold flex items-center gap-2 hover:bg-emerald-800"
+                                >
+                                    <FaSave />
+                                    Exportar Excel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setModalErroresCarga(false)}
+                                    className="w-9 h-9 rounded-xl border border-slate-200 text-slate-600 flex items-center justify-center"
+                                    aria-label="Cerrar"
+                                >
+                                    <FaTimes />
+                                </button>
+                            </div>
+                        </header>
+                        <div className="overflow-y-auto p-5">
+                            <p className="mb-3 text-sm font-semibold text-slate-700">
+                                Total: {resultadoCargaArchivo.errores.length}
+                            </p>
+                            <div className="overflow-x-auto rounded-xl border border-slate-200">
+                                <table className="w-full min-w-[620px] text-sm">
+                                    <thead className="bg-slate-50 text-left text-[11px] uppercase text-slate-500">
+                                        <tr>
+                                            <th className="px-3 py-2">Fila</th>
+                                            <th className="px-3 py-2">Código</th>
+                                            <th className="px-3 py-2">Producto del archivo</th>
+                                            <th className="px-3 py-2 text-right">Conteo físico</th>
+                                            <th className="px-3 py-2">Motivo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200">
+                                        {resultadoCargaArchivo.errores.map((error, indice) => {
+                                            const registro = typeof error === "object"
+                                                ? error
+                                                : {
+                                                    fila: "—",
+                                                    codigo: "—",
+                                                    producto: "—",
+                                                    cantidad: "—",
+                                                    motivo: error,
+                                                };
+
+                                            return (
+                                                <tr key={`${registro.codigo}-${registro.fila}-${indice}`}>
+                                                    <td className="px-3 py-3 text-slate-600">{registro.fila}</td>
+                                                    <td className="px-3 py-3 font-semibold text-slate-800">{registro.codigo}</td>
+                                                    <td className="px-3 py-3 text-slate-700">{registro.producto}</td>
+                                                    <td className="px-3 py-3 text-right text-slate-700">
+                                                        {typeof registro.cantidad === "number"
+                                                            ? new Intl.NumberFormat("es-CO", {
+                                                                maximumFractionDigits: 3,
+                                                            }).format(registro.cantidad)
+                                                            : registro.cantidad}
+                                                    </td>
+                                                    <td className="px-3 py-3 text-amber-800">{registro.motivo}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            )}
 
             {modalProductos.visible && (
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -1532,4 +1954,24 @@ export const CrearInventarioInicial = ({ setSidebar, navegar }) => {
             )}
         </>
     );
+};
+
+const normalizarEncabezadoExcel = (valor) =>
+    String(valor ?? "")
+        .trim()
+        .toUpperCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+const normalizarCodigoProducto = (valor) =>
+    String(valor ?? "").trim().toUpperCase();
+
+const cantidadExcel = (valor) => {
+    const texto = String(valor ?? "")
+        .trim()
+        .replace(/\s/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".");
+
+    return Number(texto);
 };

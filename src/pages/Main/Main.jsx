@@ -55,6 +55,7 @@ import { OperadoresInventario } from "../Inventarios/Operadores/OperadoresInvent
 import { CrearOperadorInventario } from "../Inventarios/Operadores/CrearOperadorInventario";
 import { EditarOperadorInventario } from "../Inventarios/Operadores/EditarOperadorInventario";
 import { EntradasInventario } from "../Inventarios/Entradas/EntradasInventario";
+import { OrdenesCompraInventario } from "../OrdenesCompra/OrdenesCompraInventario";
 import { CrearEntradaInventario } from "../Inventarios/Entradas/CrearEntradaInventario";
 import { DetalleEntradaInventario } from "../Inventarios/Entradas/DetalleEntradaInventario";
 import OrdenesAlistamientoInventario from "../Inventarios/OrdenesAlistamiento/OrdenesAlistamientoInventario";
@@ -451,6 +452,10 @@ export const Main = () => {
 
 
                         {/* INVENTARIOS - ENTRADAS */}
+
+                        {pagina === "OrdenesCompraInventario" && (
+                            <OrdenesCompraInventario setSidebar={setSidebar} />
+                        )}
 
                         {pagina === "EntradasInventario" && (
                             <EntradasInventario

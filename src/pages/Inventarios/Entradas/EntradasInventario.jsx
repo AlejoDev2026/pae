@@ -282,7 +282,7 @@ export const EntradasInventario = ({
         const estado = obtenerEstadoProceso(entrada);
 
         if (estado === "FINALIZADA") {
-            return "Finalizada";
+            return entrada?.compraConPendientes ? "Finalizada con pendientes" : "Finalizada";
         }
 
         if (estado === "ANULADA") {
@@ -444,6 +444,8 @@ export const EntradasInventario = ({
                         idDocumento,
                         idEntrada: idDocumento,
                         idUsuario: usuarioSesion.idUsuario,
+                        correoSesion: JSON.parse(localStorage.getItem("us") || "{}")?.correo || "",
+                        tokenSesion: localStorage.getItem("st") || "",
                         idUsuarioFinaliza:
                             usuarioSesion.idUsuario,
                         idOperador:
@@ -531,21 +533,21 @@ export const EntradasInventario = ({
 
     return (
         <>
-            <div className="w-full h-screen flex flex-col p-3 md:p-6 gap-6 bg-slate-100">
-                <article className="flex-1 bg-white shadow-lg rounded-2xl flex flex-col overflow-hidden border border-slate-200">
-                    <header className="px-5 py-5 md:px-7 border-b border-slate-200 bg-white">
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                            <div className="flex items-start gap-3">
+            <div className="w-full h-screen flex flex-col p-3 md:p-4 gap-3 bg-slate-100">
+                <article className="flex-1 bg-white shadow-lg rounded-xl flex flex-col overflow-hidden border border-slate-200">
+                    <header className="px-4 py-3 border-b border-slate-200 bg-white">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+                            <div className="flex items-center gap-3">
                                 <button
                                     type="button"
                                     onClick={abrirMenu}
-                                    className="lg:hidden w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-slate-700 hover:bg-slate-50 transition"
+                                    className="lg:hidden w-10 h-10 rounded-lg border border-slate-200 bg-white flex items-center justify-center text-slate-700 hover:bg-slate-50 transition"
                                     aria-label="Abrir menú"
                                 >
                                     <IoMenu className="text-2xl" />
                                 </button>
 
-                                <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                                <div className="w-9 h-9 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
                                     <FaWarehouse className="text-xl text-blue-800" />
                                 </div>
 
@@ -554,11 +556,11 @@ export const EntradasInventario = ({
                                         Operación de inventarios
                                     </p>
 
-                                    <h1 className="mt-1 text-2xl md:text-3xl font-bold text-slate-900">
+                                    <h1 className="text-lg md:text-xl font-bold text-slate-900">
                                         Entradas de inventario
                                     </h1>
 
-                                    <p className="mt-1 text-sm text-slate-500 max-w-3xl">
+                                    <p className="text-xs text-slate-500">
                                         Gestiona entradas en borrador, finaliza ingresos de mercancía y consulta la trazabilidad de productos, lotes, bodegas y movimientos.
                                     </p>
                                 </div>
@@ -569,7 +571,7 @@ export const EntradasInventario = ({
                                     type="button"
                                     onClick={cargarEntradas}
                                     disabled={cargando}
-                                    className="h-11 px-4 rounded-xl border border-slate-300 bg-white text-slate-700 font-semibold flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-60 transition"
+                                    className="h-9 px-4 rounded-lg border border-slate-300 bg-white text-slate-700 font-semibold flex items-center justify-center gap-2 hover:bg-slate-50 disabled:opacity-60 transition"
                                 >
                                     <FaSyncAlt
                                         className={
@@ -585,7 +587,7 @@ export const EntradasInventario = ({
                                 <button
                                     type="button"
                                     onClick={nuevaEntrada}
-                                    className="h-11 px-5 rounded-xl bg-blue-800 text-white font-semibold flex items-center justify-center gap-2 hover:bg-blue-900 transition shadow-sm"
+                                    className="h-9 px-5 rounded-lg bg-blue-800 text-white font-semibold flex items-center justify-center gap-2 hover:bg-blue-900 transition shadow-sm"
                                 >
                                     <FaPlus />
                                     Nueva entrada
@@ -595,113 +597,113 @@ export const EntradasInventario = ({
                     </header>
 
                     <div className="flex-1 overflow-y-auto">
-                        <div className="p-5 md:p-7 space-y-6">
-                            <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-                                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                        <div className="p-3 md:p-4 space-y-3">
+                            <section className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
+                                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
                                             <p className="text-sm font-medium text-slate-500">
                                                 Entradas
                                             </p>
 
-                                            <p className="mt-2 text-3xl font-bold text-slate-900">
+                                            <p className="text-xl font-bold text-slate-900">
                                                 {
                                                     resumen.totalEntradas
                                                 }
                                             </p>
                                         </div>
 
-                                        <div className="w-11 h-11 rounded-xl bg-slate-100 flex items-center justify-center">
+                                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center">
                                             <FaFileInvoice className="text-lg text-slate-700" />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+                                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 shadow-sm">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
                                             <p className="text-sm font-medium text-amber-700">
                                                 Borradores
                                             </p>
 
-                                            <p className="mt-2 text-3xl font-bold text-amber-800">
+                                            <p className="text-xl font-bold text-amber-800">
                                                 {
                                                     resumen.totalBorradores
                                                 }
                                             </p>
                                         </div>
 
-                                        <div className="w-11 h-11 rounded-xl bg-white/70 flex items-center justify-center">
+                                        <div className="w-8 h-8 rounded-lg bg-white/70 flex items-center justify-center">
                                             <FaEdit className="text-lg text-amber-700" />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 shadow-sm">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
                                             <p className="text-sm font-medium text-emerald-700">
                                                 Finalizadas
                                             </p>
 
-                                            <p className="mt-2 text-3xl font-bold text-emerald-800">
+                                            <p className="text-xl font-bold text-emerald-800">
                                                 {
                                                     resumen.totalFinalizadas
                                                 }
                                             </p>
                                         </div>
 
-                                        <div className="w-11 h-11 rounded-xl bg-white/70 flex items-center justify-center">
+                                        <div className="w-8 h-8 rounded-lg bg-white/70 flex items-center justify-center">
                                             <FaCheckCircle className="text-lg text-emerald-700" />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
                                             <p className="text-sm font-medium text-slate-500">
                                                 Productos
                                             </p>
 
-                                            <p className="mt-2 text-3xl font-bold text-blue-800">
+                                            <p className="text-xl font-bold text-blue-800">
                                                 {
                                                     resumen.totalProductos
                                                 }
                                             </p>
                                         </div>
 
-                                        <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center">
+                                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
                                             <FaBoxes className="text-lg text-blue-700" />
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
                                             <p className="text-sm font-medium text-slate-500">
                                                 Cantidad
                                             </p>
 
-                                            <p className="mt-2 text-3xl font-bold text-emerald-700">
+                                            <p className="text-xl font-bold text-emerald-700">
                                                 {formatearNumero(
                                                     resumen.totalCantidad
                                                 )}
                                             </p>
                                         </div>
 
-                                        <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center">
+                                        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
                                             <FaArrowRight className="text-lg text-emerald-700" />
                                         </div>
                                     </div>
                                 </div>
                             </section>
 
-                            <section className="rounded-2xl border border-slate-200 bg-white p-4 md:p-5 shadow-sm">
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[1fr_180px_180px_180px_auto] gap-4">
+                            <section className="rounded-xl border border-slate-200 bg-white p-4 md:px-3 py-2 shadow-sm">
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_140px_155px_155px_auto] gap-2">
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                                             Buscar entrada
                                         </label>
 
@@ -721,13 +723,13 @@ export const EntradasInventario = ({
                                                     )
                                                 }
                                                 placeholder="Consecutivo, tipo, usuario, operador u observación"
-                                                className="w-full h-11 pl-11 pr-4 rounded-xl border border-slate-300 bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-700 transition"
+                                                className="w-full h-9 pl-11 pr-4 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-700 transition"
                                             />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                                             Estado
                                         </label>
 
@@ -744,7 +746,7 @@ export const EntradasInventario = ({
                                                         .value
                                                 )
                                             }
-                                            className="w-full h-11 px-4 rounded-xl border border-slate-300 bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-700 transition"
+                                            className="w-full h-9 px-4 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-700 transition"
                                         >
                                             <option value="">
                                                 Todos
@@ -759,7 +761,7 @@ export const EntradasInventario = ({
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                                             Fecha desde
                                         </label>
 
@@ -775,12 +777,12 @@ export const EntradasInventario = ({
                                                         .value
                                                 )
                                             }
-                                            className="w-full h-11 px-4 rounded-xl border border-slate-300 bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-700 transition"
+                                            className="w-full h-9 px-4 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-700 transition"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-semibold text-slate-700 mb-2">
+                                        <label className="block text-xs font-semibold text-slate-700 mb-1">
                                             Fecha hasta
                                         </label>
 
@@ -796,7 +798,7 @@ export const EntradasInventario = ({
                                                         .value
                                                 )
                                             }
-                                            className="w-full h-11 px-4 rounded-xl border border-slate-300 bg-white text-slate-800 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-700 transition"
+                                            className="w-full h-9 px-4 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-700 transition"
                                         />
                                     </div>
 
@@ -806,7 +808,7 @@ export const EntradasInventario = ({
                                             onClick={
                                                 limpiarFiltros
                                             }
-                                            className="w-full xl:w-auto h-11 px-5 rounded-xl border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition"
+                                            className="w-full xl:w-auto h-9 px-5 rounded-lg border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition"
                                         >
                                             Limpiar
                                         </button>

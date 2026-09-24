@@ -22,6 +22,7 @@ import {
     FaWarehouse,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { SeleccionarCompraEntrada } from "./SeleccionarCompraEntrada";
 
 const API_BASE_ENTRADAS =
     "https://app.accionporcolombia.com/servicesPae/Inventario/Entradas/";
@@ -40,6 +41,7 @@ export const CrearEntradaInventario = ({
     const estadoPagina = (pagina) => navegar(pagina);
 
     const inputProductoRef = useRef(null);
+    const guardadoEnCurso = useRef(false);
     const inputCantidadModalRef = useRef(null);
     const inputCantidadRefs = useRef({});
     const botonLoteActivoRef = useRef(null);
@@ -78,6 +80,21 @@ export const CrearEntradaInventario = ({
         useState("");
 
     const [detalles, setDetalles] = useState([]);
+    const [ordenCompra, setOrdenCompra] = useState(null);
+    const [modalCompra, setModalCompra] = useState(false);
+
+    const cargarCompra = (orden, productos) => {
+        setOrdenCompra(orden);
+        setDetalles(productos.map((r) => ({
+            tempId: `compra-${r.id}-${Date.now()}`, idOrdenCompraDetalle: Number(r.id),
+            idProducto: Number(r.producto.idProducto), codigo: r.codigo,
+            descripcion: r.producto.descripcion, unidad: r.producto.unidad || "UND",
+            cantidadPedida: Number(r.cantidad), cantidadPendiente: Number(r.cantidadPendiente), cantidad: 0,
+            manejaLote: Number(r.producto.manejaLote) === 1, manejaVencimiento: Number(r.producto.manejaVencimiento) === 1,
+            idLote: null, lote: null, fechaVencimiento: null, observacion: "",
+        })));
+        setModalCompra(false);
+    };
 
     const [modalProductos, setModalProductos] = useState({
         visible: false,
@@ -428,6 +445,7 @@ export const CrearEntradaInventario = ({
 
             const data = resultado?.data || {};
             const documento = data?.documento || data?.entrada || {};
+            setOrdenCompra(documento.ordenCompra || null);
             const estadoProceso = String(
                 documento?.estadoProceso || "BORRADOR"
             )
@@ -462,6 +480,9 @@ export const CrearEntradaInventario = ({
 
                     return {
                         tempId: `edit-${detalle?.idDocumentoDetalle || indice}-${Date.now()}`,
+                        idOrdenCompraDetalle: detalle.idOrdenCompraDetalle || null,
+                        cantidadPedida: detalle.cantidadPedida,
+                        cantidadPendiente: detalle.cantidadPendiente,
                         idDocumentoDetalle:
                             detalle?.idDocumentoDetalle || null,
                         idProducto: Number(
@@ -798,6 +819,7 @@ export const CrearEntradaInventario = ({
     };
 
     const abrirModalCantidadProducto = (producto) => {
+        if (ordenCompra) { toast.info("Esta entrada recibe los productos de la compra seleccionada. Usa otra entrada para productos adicionales."); return; }
         const idProducto = Number(
             producto?.idProducto ?? producto?.id ?? 0
         );
@@ -1440,6 +1462,8 @@ export const CrearEntradaInventario = ({
 
         for (const detalle of detalles) {
             const cantidad = Number(detalle.cantidad ?? 0);
+            if (ordenCompra && cantidad === 0) continue;
+            if (!Number.isFinite(cantidad)) { toast.warning("La cantidad recibida no es válida."); return false; }
 
             if (cantidad <= 0) {
                 toast.warning(
@@ -1474,14 +1498,27 @@ export const CrearEntradaInventario = ({
     };
 
     const guardarEntrada = async () => {
+        if (guardadoEnCurso.current) return;
+        if (ordenCompra) {
+            if (!detalles.some(d => Number(d.cantidad) > 0)) { toast.warning("Ingresa al menos una cantidad recibida."); return; }
+            const sumas = {};
+            for (const d of detalles) {
+                sumas[d.idOrdenCompraDetalle] = (sumas[d.idOrdenCompraDetalle] || 0) + Number(d.cantidad);
+                if (sumas[d.idOrdenCompraDetalle] > Number(d.cantidadPendiente) + 0.0000001) { toast.warning(`La cantidad recibida de ${d.descripcion} supera el pendiente.`); return; }
+            }
+        }
         if (!validarFormulario()) {
             return;
         }
 
+        guardadoEnCurso.current = true;
         setGuardando(true);
 
         try {
             const payload = {
+                correoSesion: JSON.parse(localStorage.getItem("us") || "{}")?.correo || "",
+                tokenSesion: localStorage.getItem("st") || "",
+                idOrdenCompra: ordenCompra?.id || null,
                 idDocumento: modoEdicion
                     ? idDocumentoEdicion
                     : undefined,
@@ -1498,7 +1535,8 @@ export const CrearEntradaInventario = ({
                 ),
                 fechaDocumento: form.fechaDocumento,
                 observacion: form.observacion,
-                detalles: detalles.map((detalle) => ({
+                detalles: detalles.filter(d => !ordenCompra || Number(d.cantidad) !== 0).map((detalle) => ({
+                    idOrdenCompraDetalle: detalle.idOrdenCompraDetalle || null,
                     idProducto: Number(
                         detalle.idProducto
                     ),
@@ -1580,6 +1618,7 @@ export const CrearEntradaInventario = ({
                 "No fue posible guardar la entrada."
             );
         } finally {
+            guardadoEnCurso.current = false;
             setGuardando(false);
         }
     };
@@ -1615,7 +1654,7 @@ export const CrearEntradaInventario = ({
                                 <button
                                     type="button"
                                     onClick={volver}
-                                    className="hidden md:flex w-9 h-9 rounded-xl border border-slate-200 bg-white items-center justify-center text-slate-700 hover:bg-slate-50 transition"
+                                    className="flex w-9 h-9 rounded-xl border border-slate-200 bg-white items-center justify-center text-slate-700 hover:bg-slate-50 transition"
                                     title="Volver"
                                 >
                                     <FaArrowLeft />
@@ -1641,11 +1680,13 @@ export const CrearEntradaInventario = ({
                             <div className="flex items-center gap-2">
                                 <button
                                     type="button"
-                                    onClick={volver}
-                                    className="h-10 px-3 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-slate-50 transition"
+                                    onClick={() => setModalCompra(true)}
+                                    disabled={cargando || guardando || cargandoEdicion || detalles.length > 0}
+                                    title={detalles.length ? "Retira los productos actuales antes de seleccionar otra compra" : "Seleccionar orden de compra (opcional)"}
+                                    className="h-10 px-3 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-slate-50 transition disabled:opacity-50"
                                 >
-                                    <FaArrowLeft />
-                                    Volver
+                                    <FaBoxOpen />
+                                    Orden de compra
                                 </button>
 
                                 <button
@@ -1668,6 +1709,11 @@ export const CrearEntradaInventario = ({
                     </header>
 
                     <div className="flex-1 overflow-y-auto">
+                        {ordenCompra && <div className="m-3 rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+                            <strong>Compra {ordenCompra.tipoDocumento} · {ordenCompra.numero}</strong> — {ordenCompra.proveedor}
+                            <p>Registra la cantidad recibida y sus lotes. Las líneas en cero quedarán pendientes. Los borradores no descuentan el pendiente.</p>
+                            {detalles.length === 0 && <button type="button" disabled={guardando} className="mt-2 underline" onClick={() => setOrdenCompra(null)}>Continuar como entrada manual</button>}
+                        </div>}
                         <div className="p-3 md:p-4">
                             {(cargando || cargandoEdicion) ? (
                                 <div className="min-h-[420px] flex flex-col items-center justify-center gap-4">
@@ -2015,7 +2061,7 @@ export const CrearEntradaInventario = ({
                                                                     </th>
 
                                                                     <th className="px-3 py-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                                                                        Cantidad
+                                                                        {ordenCompra ? "Recibida" : "Cantidad"}
                                                                     </th>
 
                                                                     <th className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -2062,6 +2108,7 @@ export const CrearEntradaInventario = ({
                                                                         </td>
 
                                                                         <td className="px-3 py-3 text-center">
+                                                                            {detalle.idOrdenCompraDetalle && <p className="mb-1 text-xs text-slate-500">Pedida: {detalle.cantidadPedida}<br />Pendiente: {detalle.cantidadPendiente}</p>}
                                                                             <input
                                                                                 ref={(element) => {
                                                                                     if (element) {
@@ -2075,6 +2122,7 @@ export const CrearEntradaInventario = ({
                                                                                 min="0"
                                                                                 step="0.001"
                                                                                 value={detalle.cantidad}
+                                                                                aria-label={`Cantidad recibida ${detalle.codigo}`}
                                                                                 onChange={(event) =>
                                                                                     actualizarDetalle(
                                                                                         detalle.tempId,
@@ -2086,6 +2134,7 @@ export const CrearEntradaInventario = ({
                                                                                 }
                                                                                 className="w-24 h-9 text-center rounded-xl border border-slate-300 bg-white text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-700 transition"
                                                                             />
+                                                                            {detalle.idOrdenCompraDetalle && detalle.manejaLote && <button type="button" className="block mx-auto mt-1 text-xs text-blue-700 hover:underline" disabled={guardando} onClick={() => setDetalles(prev => [...prev, { ...detalle, tempId: `lote-${Date.now()}-${Math.random()}`, cantidad: 0, idLote: null, lote: null, fechaVencimiento: null }])}>Otro lote</button>}
                                                                         </td>
 
                                                                         <td className="px-3 py-3">
@@ -2827,6 +2876,7 @@ export const CrearEntradaInventario = ({
                     </section>
                 </div>
             )}
+            {modalCompra && <SeleccionarCompraEntrada cerrar={() => setModalCompra(false)} seleccionar={cargarCompra} />}
         </>
     );
 };

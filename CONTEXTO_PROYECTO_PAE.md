@@ -996,3 +996,17 @@ La migración de referencia es `backend-reference/database/migrations/2026-09-01
 - El frontend filtra el menú y bloquea navegación directa según el permiso de cada pantalla.
 - Ocultar una opción en React no reemplaza la validación del permiso en servicios PHP que modifican información.
 - Los permisos se identifican como `modulo.accion`, por ejemplo `usuarios.administrar` o `conteos.ejecutar`.
+
+## Órdenes de compra — carga CSV (2026-09-07)
+
+- Primera etapa implementada en el repositorio: vista previa, importación y consulta. Órdenes de compra tiene acceso propio en el menú principal, fuera de Inventarios. El frontend está en `src/pages/OrdenesCompra`; conserva el identificador público `OrdenesCompraInventario` por compatibilidad.
+- La pantalla inicial muestra el listado siguiendo el patrón de Despachos: buscador, acción Cargar orden, encabezado gris, filas separadas y acción Ver; en móvil/tableta usa tarjetas. La carga y el detalle se abren en vistas separadas dentro del módulo. Guardar una orden devuelve al listado actualizado.
+- Nuevas tablas definidas explícitamente en `backend-reference/database/migrations/2026-09-07_ordenes_compra.sql`: `InventarioOrdenesCompra` y `InventarioOrdenesCompraDetalle`. No estaban presentes en el esquema de referencia anterior.
+- Servicio: `Inventario/OrdenesCompra/InventarioOrdenesCompra.php`, con lector de servidor `OrdenCompraCsv.php`, transacción de cabecera/detalle y claves únicas contra recargas.
+- Conserva el archivo original y todos los renglones. No depende de filas fijas ni de que el archivo tenga únicamente dos productos.
+- Permiso `compras.cargar`: administrador mediante el mecanismo existente; asignación a los dos roles operativos pendiente.
+- La carga de CSV no afecta inventario. Recepción opcional implementada en Entradas: selector de compra, código exacto contra catálogo activo, cantidad pedida/pendiente/recibida, lotes y validación del pendiente al finalizar. Requiere `2026-09-07_entradas_ordenes_compra.sql`; publicación y validación MySQL pendientes. Ver `backend-reference/servicesPae/Inventario/Entradas/RECEPCION_COMPRAS.md`.
+- No interpretar UBI como bodega interna, PARCIAL como cantidad pendiente ni vencimiento del documento como vencimiento de productos. Conservar COSTO y VR.UNITARIO separados.
+- Publicación de migración y servicios, y validación de persistencia/transacciones contra MySQL real pendientes. Detalles y supuestos en `backend-reference/servicesPae/Inventario/OrdenesCompra/README.md`.
+
+- Recepci?n de compras: los listados de compras y el selector excluyen ?rdenes sin pendiente, calculado por rengl?n con entradas FINALIZADA. El historial y detalle de entradas muestran ?Finalizada con pendientes? si la compra a?n tiene saldo; estadoProceso permanece FINALIZADA para conservar bloqueos y movimientos. Requiere publicar RecepcionCompraSql.php y los servicios de consulta actualizados; no elimina ?rdenes ni requiere otra migraci?n.

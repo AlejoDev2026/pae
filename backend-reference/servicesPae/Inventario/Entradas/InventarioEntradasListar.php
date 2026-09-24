@@ -16,7 +16,7 @@ try {
 
     $where = "
         td.naturaleza IN ('ENTRADA', 'INVENTARIO_INICIAL')
-        AND d.tipoOrigen = 'MANUAL'
+        AND d.tipoOrigen IN ('MANUAL', 'ORDEN_COMPRA')
     ";
 
     if ($idUsuario > 0) {
@@ -131,6 +131,16 @@ try {
     ");
 
     $data = array_map("inv_formatear_documento", $filas);
+
+    require_once __DIR__ . '/EntradaCompraHelper.php';
+    require_once __DIR__ . '/../OrdenesCompra/RecepcionCompraSql.php';
+    foreach ($data as &$entrada) {
+        if ($entrada['tipoOrigen'] === 'ORDEN_COMPRA') {
+            $recepcion = ecConsulta('SELECT ' . ocPendienteSql('r.idOrdenCompra') . ' AS pendiente FROM InventarioEntradaCompra r WHERE r.idDocumento = ?', [$entrada['idDocumento']]);
+            $entrada['compraConPendientes'] = !empty($recepcion[0]['pendiente']);
+        }
+    }
+    unset($entrada);
 
     $resumen = [
         "totalEntradas" => count($data),
