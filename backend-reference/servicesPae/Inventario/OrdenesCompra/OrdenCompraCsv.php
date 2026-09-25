@@ -64,6 +64,7 @@ function ocLeerCsv($contenido)
     $escapeCsv = PHP_VERSION_ID >= 70400 ? '' : "\0";
     $orden = [];
     $productos = [];
+    $advertencias = [];
     $enDetalle = false;
     $fila = 0;
     $etiquetas = ['PROVEEDOR' => 'proveedor', 'NIT' => 'nitProveedor', 'TELEFONO' => 'telefono',
@@ -105,8 +106,21 @@ function ocLeerCsv($contenido)
             }
             if (preg_match('/^ORDEN DE COMPRA\s+(.+?)\s+No\.$/i', $primero, $m)) {
                 if (count($valores) !== 2) throw new InvalidArgumentException('No se identifica el número de la orden.');
-                $asignar('tipoDocumento', strtoupper(trim($m[1])));
-                $asignar('numero', $valores[1]);
+                $tipoDocumento = strtoupper(trim($m[1]));
+                $numeroOrden = $valores[1];
+
+                if (isset($orden['numero']) && $orden['numero'] !== $numeroOrden) {
+                    throw new InvalidArgumentException('El archivo contiene números de orden distintos; carga una sola orden completa.');
+                }
+                if (isset($orden['tipoDocumento']) && $orden['tipoDocumento'] !== $tipoDocumento) {
+                    if (!$enDetalle || ($orden['numero'] ?? null) !== $numeroOrden) {
+                        throw new InvalidArgumentException('El archivo contiene valores distintos para tipoDocumento; carga una sola orden completa.');
+                    }
+                    $advertencias[] = "El encabezado repetido de la fila $fila indica tipo $tipoDocumento; se conserva {$orden['tipoDocumento']} para la orden $numeroOrden.";
+                } else {
+                    $asignar('tipoDocumento', $tipoDocumento);
+                }
+                $asignar('numero', $numeroOrden);
                 continue;
             }
             if (strpos($primero, 'Nota Orden de Compra:') === 0) {
@@ -176,7 +190,6 @@ function ocLeerCsv($contenido)
     if (strlen($orden['observacion']) > 60000) throw new InvalidArgumentException('La observación es demasiado larga.');
     if (!$productos) throw new InvalidArgumentException('El archivo no contiene productos.');
     // Las diferencias contables se muestran sin reinterpretar impuestos del proveedor.
-    $advertencias = [];
     $suma = array_sum(array_column($productos, 'valorTotal'));
     if (abs($suma - (float)$orden['subtotal']) > 0.02) {
         throw new InvalidArgumentException('La suma de los productos no coincide con el subtotal. Revisa que el CSV esté completo.');

@@ -45,6 +45,9 @@ import { EditarTipoProductoInventario } from "../Inventarios/TiposProducto/Edita
 import { ProductosInventario } from "../Inventarios/Productos/ProductosInventario";
 import { CrearProductoInventario } from "../Inventarios/Productos/CrearProductoInventario";
 import { EditarProductoInventario } from "../Inventarios/Productos/EditarProductoInventario";
+import { EmbalajesInventario } from "../Inventarios/Embalajes/EmbalajesInventario";
+import { CrearEmbalajeInventario } from "../Inventarios/Embalajes/CrearEmbalajeInventario";
+import { EditarEmbalajeInventario } from "../Inventarios/Embalajes/EditarEmbalajeInventario";
 import { CodigosBarrasInventario } from "../Inventarios/CodigosBarras/CodigosBarrasInventario";
 import { CrearCodigoBarrasInventario } from "../Inventarios/CodigosBarras/CrearCodigoBarrasInventario";
 import { EditarCodigoBarrasInventario } from "../Inventarios/CodigosBarras/EditarCodigoBarrasInventario";
@@ -379,6 +382,10 @@ export const Main = () => {
                                 navegar={navegar}
                             />
                         )}
+
+                        {pagina === "EmbalajesInventario" && <EmbalajesInventario setSidebar={setSidebar} navegar={navegar} />}
+                        {pagina === "CrearEmbalajeInventario" && <CrearEmbalajeInventario setSidebar={setSidebar} navegar={navegar} />}
+                        {pagina === "EditarEmbalajeInventario" && <EditarEmbalajeInventario setSidebar={setSidebar} navegar={navegar} />}
 
                         {pagina === "CodigosBarrasInventario" && (
                             <CodigosBarrasInventario

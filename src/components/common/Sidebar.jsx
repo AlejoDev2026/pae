@@ -239,6 +239,13 @@ export const Sidebar = ({ isOpen, setIsOpen, pagina, navegar }) => {
                 ],
               },
               {
+                id: "embalajes",
+                label: "Embalajes",
+                pagina: "EmbalajesInventario",
+                icono: <FaBoxesStacked />,
+                paginasRelacionadas: ["EmbalajesInventario", "CrearEmbalajeInventario", "EditarEmbalajeInventario"],
+              },
+              {
                 id: "codigos-barras",
                 label: "Códigos de barras",
                 pagina: "CodigosBarrasInventario",

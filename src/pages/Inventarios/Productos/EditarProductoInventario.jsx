@@ -14,6 +14,7 @@ import {
   FaCheckCircle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { SelectorBuscableInventario } from "./SelectorBuscableInventario";
 
 const API_BASE_PRODUCTOS =
   "https://app.accionporcolombia.com/servicesPae/Inventario/Productos/";
@@ -442,32 +443,7 @@ export const EditarProductoInventario = ({ setSidebar, navegar, data }) => {
                           Grupo <span className="text-red-500">*</span>
                         </label>
 
-                        <div className="relative">
-                          <FaLayerGroup className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-700 text-sm" />
-
-                          <select
-                            name="idGrupo"
-                            value={form.idGrupo}
-                            onChange={handleChange}
-                            disabled={cargandoData}
-                            className="h-11 w-full border border-slate-300 bg-white rounded-xl pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#193CB8] transition disabled:bg-slate-100 disabled:text-slate-400"
-                          >
-                            <option value="">
-                              {cargandoData
-                                ? "Cargando grupos..."
-                                : "Seleccione grupo"}
-                            </option>
-
-                            {grupos.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.codigo}
-                                {item.categoriaProducto
-                                  ? ` - ${item.categoriaProducto}`
-                                  : ""}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <SelectorBuscableInventario opciones={grupos} valor={form.idGrupo} alCambiar={(idGrupo) => setForm((prev) => ({ ...prev, idGrupo: idGrupo ? Number(idGrupo) : "" }))} textoOpcion={(item) => `${item.codigo}${item.categoriaProducto ? ` - ${item.categoriaProducto}` : ""}`} textoBusqueda={(item) => `${item.codigo || ""} ${item.categoriaProducto || ""}`} placeholder="Buscar y seleccionar grupo" deshabilitado={cargandoData} />
 
                         <span className="text-xs text-slate-400">
                           Clasificación principal del producto.
@@ -479,34 +455,7 @@ export const EditarProductoInventario = ({ setSidebar, navegar, data }) => {
                           Embalaje
                         </label>
 
-                        <div className="relative">
-                          <FaBoxes className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm" />
-
-                          <select
-                            name="idEmbalaje"
-                            value={form.idEmbalaje}
-                            onChange={handleChange}
-                            disabled={cargandoData}
-                            className="h-11 w-full border border-slate-300 bg-white rounded-xl pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#193CB8] transition disabled:bg-slate-100 disabled:text-slate-400"
-                          >
-                            <option value="">
-                              {cargandoData
-                                ? "Cargando embalajes..."
-                                : "Seleccione embalaje"}
-                            </option>
-
-                            {embalajes.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.productoBase || "Producto"}
-                                {item.presentacion
-                                  ? ` / ${item.presentacion}`
-                                  : ""}
-                                {item.embalaje ? ` / ${item.embalaje}` : ""}
-                                {item.uniCaja ? ` / ${item.uniCaja} und.` : ""}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                        <SelectorBuscableInventario opciones={embalajes} valor={form.idEmbalaje} alCambiar={(idEmbalaje) => setForm((prev) => ({ ...prev, idEmbalaje: idEmbalaje ? Number(idEmbalaje) : "" }))} textoOpcion={(item) => `${item.productoBase || "Producto"}${item.presentacion ? ` / ${item.presentacion}` : ""}${item.embalaje ? ` / ${item.embalaje}` : ""}${item.uniCaja ? ` / ${item.uniCaja} und.` : ""}`} textoBusqueda={(item) => `${item.productoBase || ""} ${item.presentacion || ""} ${item.embalaje || ""} ${item.uniCaja || ""}`} placeholder="Buscar embalaje" deshabilitado={cargandoData} permitirLimpiar />
 
                         <span className="text-xs text-slate-400">
                           Presentación o empaque del producto.

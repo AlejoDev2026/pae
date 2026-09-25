@@ -14,6 +14,7 @@ import {
     FaCheckCircle,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
+import { SelectorBuscableInventario } from "./SelectorBuscableInventario";
 
 const API_BASE_PRODUCTOS =
     "https://app.accionporcolombia.com/servicesPae/Inventario/Productos/";
@@ -252,7 +253,7 @@ export const CrearProductoInventario = ({ setSidebar, navegar }) => {
     };
 
     return (
-        <div className="w-full h-screen flex flex-col p-6 gap-6 bg-slate-100">
+        <div className="h-full w-full overflow-y-auto bg-slate-100 p-3 md:p-6">
             <div className="flex items-center gap-5 lg:hidden">
                 <div
                     className="p-2 rounded-lg hover:bg-gray-300 cursor-pointer"
@@ -264,7 +265,7 @@ export const CrearProductoInventario = ({ setSidebar, navegar }) => {
                 <h1 className="text-lg font-bold">Crear producto</h1>
             </div>
 
-            <article className="flex-1 bg-white shadow-lg rounded-2xl flex flex-col overflow-hidden border border-slate-200">
+            <article className="mx-auto flex min-h-full max-w-7xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
                 <nav className="w-full px-6 py-5 border-b border-slate-200 bg-white">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-center gap-4">
@@ -291,24 +292,15 @@ export const CrearProductoInventario = ({ setSidebar, navegar }) => {
                             </div>
                         </div>
 
-                        <button
-                            type="button"
-                            onClick={guardarProducto}
-                            disabled={guardando || cargandoData}
-                            className="px-5 py-2.5 bg-blue-800 text-white rounded-xl hover:bg-blue-900 flex items-center justify-center gap-2 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed shadow-sm font-semibold"
-                        >
-                            <FaSave />
-                            {guardando ? "Guardando..." : "Guardar producto"}
-                        </button>
                     </div>
                 </nav>
 
                 <form
                     onSubmit={guardarProducto}
-                    className="flex-1 overflow-y-auto no-scrollbar bg-slate-50"
+                    className="flex-1 bg-slate-50"
                 >
-                    <div className="p-6">
-                        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_390px] gap-6 items-start">
+                    <div className="p-4 md:p-6">
+                        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
                             <section className="min-w-0 space-y-6">
                                 <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                                     <div className="px-5 py-4 border-b border-slate-200 flex items-center gap-3">
@@ -409,32 +401,7 @@ export const CrearProductoInventario = ({ setSidebar, navegar }) => {
                                                     Grupo <span className="text-red-500">*</span>
                                                 </label>
 
-                                                <div className="relative">
-                                                    <FaLayerGroup className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-700 text-sm" />
-
-                                                    <select
-                                                        name="idGrupo"
-                                                        value={form.idGrupo}
-                                                        onChange={handleChange}
-                                                        disabled={cargandoData}
-                                                        className="h-11 w-full border border-slate-300 bg-white rounded-xl pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#193CB8] transition disabled:bg-slate-100 disabled:text-slate-400"
-                                                    >
-                                                        <option value="">
-                                                            {cargandoData
-                                                                ? "Cargando grupos..."
-                                                                : "Seleccione grupo"}
-                                                        </option>
-
-                                                        {grupos.map((item) => (
-                                                            <option key={item.id} value={item.id}>
-                                                                {item.codigo}
-                                                                {item.categoriaProducto
-                                                                    ? ` - ${item.categoriaProducto}`
-                                                                    : ""}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
+                                                <SelectorBuscableInventario opciones={grupos} valor={form.idGrupo} alCambiar={(idGrupo) => setForm((prev) => ({ ...prev, idGrupo: idGrupo ? Number(idGrupo) : "" }))} textoOpcion={(item) => `${item.codigo}${item.categoriaProducto ? ` - ${item.categoriaProducto}` : ""}`} textoBusqueda={(item) => `${item.codigo || ""} ${item.categoriaProducto || ""}`} placeholder="Buscar y seleccionar grupo" deshabilitado={cargandoData} />
 
                                                 <span className="text-xs text-slate-400">
                                                     Clasificación principal del producto.
@@ -446,34 +413,7 @@ export const CrearProductoInventario = ({ setSidebar, navegar }) => {
                                                     Embalaje
                                                 </label>
 
-                                                <div className="relative">
-                                                    <FaBoxes className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm" />
-
-                                                    <select
-                                                        name="idEmbalaje"
-                                                        value={form.idEmbalaje}
-                                                        onChange={handleChange}
-                                                        disabled={cargandoData}
-                                                        className="h-11 w-full border border-slate-300 bg-white rounded-xl pl-10 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-[#193CB8] transition disabled:bg-slate-100 disabled:text-slate-400"
-                                                    >
-                                                        <option value="">
-                                                            {cargandoData
-                                                                ? "Cargando embalajes..."
-                                                                : "Seleccione embalaje"}
-                                                        </option>
-
-                                                        {embalajes.map((item) => (
-                                                            <option key={item.id} value={item.id}>
-                                                                {item.productoBase || "Producto"}
-                                                                {item.presentacion
-                                                                    ? ` / ${item.presentacion}`
-                                                                    : ""}
-                                                                {item.embalaje ? ` / ${item.embalaje}` : ""}
-                                                                {item.uniCaja ? ` / ${item.uniCaja} und.` : ""}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                </div>
+                                                <SelectorBuscableInventario opciones={embalajes} valor={form.idEmbalaje} alCambiar={(idEmbalaje) => setForm((prev) => ({ ...prev, idEmbalaje: idEmbalaje ? Number(idEmbalaje) : "" }))} textoOpcion={(item) => `${item.productoBase || "Producto"}${item.presentacion ? ` / ${item.presentacion}` : ""}${item.embalaje ? ` / ${item.embalaje}` : ""}${item.uniCaja ? ` / ${item.uniCaja} und.` : ""}`} textoBusqueda={(item) => `${item.productoBase || ""} ${item.presentacion || ""} ${item.embalaje || ""} ${item.uniCaja || ""}`} placeholder="Buscar embalaje" deshabilitado={cargandoData} permitirLimpiar />
 
                                                 <span className="text-xs text-slate-400">
                                                     Presentación o empaque del producto.
@@ -676,8 +616,8 @@ export const CrearProductoInventario = ({ setSidebar, navegar }) => {
                                 </div>
                             </section>
 
-                            <aside className="min-w-0">
-                                <div className="sticky top-0 space-y-5">
+                            <aside className="min-w-0 xl:sticky xl:top-6">
+                                <div className="space-y-5">
                                     <div className="rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
                                         <div className="h-1.5 bg-blue-800"></div>
 
@@ -829,7 +769,7 @@ export const CrearProductoInventario = ({ setSidebar, navegar }) => {
                             </aside>
                         </div>
 
-                        <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-200 pt-5">
+                        <div className="mt-6 flex flex-col-reverse justify-end gap-3 border-t border-slate-200 pt-5 sm:flex-row">
                             <button
                                 type="button"
                                 onClick={() => estadoPagina("ProductosInventario")}
