@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router";
 import { ToastContainer, toast } from "react-toastify";
 
@@ -92,11 +92,16 @@ export const Main = () => {
 
     const usuarioGuardado = JSON.parse(localStorage.getItem("us"));
     const [usuario, setUsuario] = useState(usuarioGuardado);
+    const usuarioRef = useRef(usuarioGuardado);
 
     const [session, setSession] = useState(false);
     const [sidebar, setSidebar] = useState(false);
 
     const [pagina, setPagina] = useState(() => primeraPaginaPermitida(usuarioGuardado));
+
+    useEffect(() => {
+        usuarioRef.current = usuario;
+    }, [usuario]);
 
     const validarSesion = async () => {
         if (!localStorage.getItem("us")) {
@@ -154,17 +159,17 @@ export const Main = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const navegar = (nuevaPagina) => {
+    const navegar = useCallback((nuevaPagina) => {
         if (!nuevaPagina || nuevaPagina === false) return;
 
-        if (!puedeAbrirPagina(usuario, nuevaPagina)) {
+        if (!puedeAbrirPagina(usuarioRef.current, nuevaPagina)) {
             toast.warning("No tienes permisos para acceder a esta opción.");
             return;
         }
 
         window.history.pushState({ pagina: nuevaPagina }, "", `#${nuevaPagina}`);
         setPagina(nuevaPagina);
-    };
+    }, []);
 
     useEffect(() => {
         const hashInicial = window.location.hash.replace("#", "");

@@ -2,7 +2,6 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import logoGobernacion from "../../assets/logoPae.png";
 import { sanitizarNombreHoja } from "../helpers/informeUtils";
-import { replace } from "react-router";
 
 const BORDER_THIN = {
     top: { style: "thin", color: { argb: "FF000000" } },
@@ -100,6 +99,10 @@ function obtenerFechaConsumoTexto(despacho, exportData) {
 }
 
 function obtenerDestino(exportData, despacho) {
+    if (Object.prototype.hasOwnProperty.call(exportData || {}, "destino")) {
+        return exportData.destino || "";
+    }
+
     return exportData?.destino || despacho?.destino || "CALI PREPARADOS";
 }
 
@@ -232,8 +235,7 @@ function aplicarEncabezado(ws, imageId, despacho, exportData, paginaTexto = "Pá
 
     ws.mergeCells("D6:G6");
 
-    const fecha = despacho?.fechaContrato.replace('Fecha de consumo: ', '')
-    setValor(ws, "D6", fecha || "", {
+    setValor(ws, "D6", obtenerFechaConsumoTexto(despacho, exportData), {
         alignment: CENTER,
     });
 
@@ -253,7 +255,7 @@ function aplicarEncabezado(ws, imageId, despacho, exportData, paginaTexto = "Pá
     ws.mergeCells("J5:L6");
 
     setValor(ws, "H5", "Destino", { alignment: CENTER });
-    setValor(ws, "J5", '', { alignment: CENTER });
+    setValor(ws, "J5", obtenerDestino(exportData, despacho), { alignment: CENTER });
 
     aplicarBordeRango(ws, 5, 6, 8, 9, BORDER_THIN);
     aplicarBordeRango(ws, 5, 6, 10, 12, BORDER_THIN);

@@ -19,6 +19,7 @@ try {
             d.idResponsable,
             d.idOperadorAsignado,
             d.idEstado,
+            d.idDespachoInforme,
             d.tipoOrigen,
             d.observacion,
             d.estadoProceso,
@@ -37,6 +38,9 @@ try {
             io.codigo AS codigoOperador,
             io.nombreCompleto AS operador,
 
+            di.fechaConsumoDesde,
+            di.fechaConsumoHasta,
+
             COUNT(DISTINCT dd.id) AS totalProductos,
             COALESCE(SUM(dd.cantidadSolicitada), 0) AS totalCantidad,
             COUNT(DISTINCT im.id) AS totalMovimientos
@@ -48,6 +52,8 @@ try {
             ON u.id = d.idUsuarioRegistro
         LEFT JOIN InventarioOperadores io
             ON io.id = d.idOperador
+        LEFT JOIN DespachosInforme di
+            ON di.id = d.idDespachoInforme
         LEFT JOIN InventarioDocumentoDetalle dd
             ON dd.idDocumento = d.id
         LEFT JOIN InventarioMovimientos im
@@ -63,6 +69,7 @@ try {
             d.idResponsable,
             d.idOperadorAsignado,
             d.idEstado,
+            d.idDespachoInforme,
             d.tipoOrigen,
             d.observacion,
             d.estadoProceso,
@@ -77,7 +84,9 @@ try {
             td.permiteLoteVencido,
             u.nombre,
             io.codigo,
-            io.nombreCompleto
+            io.nombreCompleto,
+            di.fechaConsumoDesde,
+            di.fechaConsumoHasta
         LIMIT 1
     ");
 

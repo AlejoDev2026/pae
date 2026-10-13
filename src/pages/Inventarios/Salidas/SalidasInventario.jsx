@@ -4,6 +4,7 @@ import React, {
     useMemo,
     useState,
 } from "react";
+import { ExcelInformeJornadaContratoExporter } from "../../../informes/exporters/ExcelInformeJornadaContratoExporter";
 import { IoMenu } from "react-icons/io5";
 import {
     FaArrowRight,
@@ -27,6 +28,21 @@ import { toast } from "react-toastify";
 const API_BASE_SALIDAS =
     "https://app.accionporcolombia.com/servicesPae/Inventario/Salidas/";
 
+const construirFechaConsumoTexto = (fechaDesde, fechaHasta, fechaRespaldo) => {
+    const formatear = (fecha) => {
+        if (!fecha) return "";
+
+        const [anio, mes, dia] = String(fecha).slice(0, 10).split("-");
+        return anio && mes && dia ? `${dia}/${mes}/${anio}` : String(fecha);
+    };
+
+    const desde = formatear(fechaDesde);
+    const hasta = formatear(fechaHasta);
+
+    if (desde && hasta) return desde === hasta ? desde : `${desde} al ${hasta}`;
+    return desde || hasta || formatear(fechaRespaldo);
+};
+
 export const SalidasInventario = ({
     setSidebar,
     navegar,
@@ -37,6 +53,7 @@ export const SalidasInventario = ({
     const [salidas, setSalidas] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [finalizando, setFinalizando] = useState(false);
+    const [idSalidaExportando, setIdSalidaExportando] = useState(null);
 
     const [busqueda, setBusqueda] = useState("");
     const [fechaDesde, setFechaDesde] = useState("");
@@ -354,6 +371,128 @@ export const SalidasInventario = ({
         );
 
         estadoPagina("DetalleSalidaInventario");
+    };
+
+    const exportarSalidaExcel = async (salida) => {
+        const idDocumento = Number(
+            salida?.idDocumento ?? salida?.idSalida ?? salida?.id ?? 0
+        );
+
+        if (!idDocumento) {
+            toast.error("No se pudo identificar la salida para exportar.");
+            return;
+        }
+
+        if (obtenerEstadoProceso(salida) !== "FINALIZADA") {
+            toast.info("La exportación está disponible para salidas finalizadas.");
+            return;
+        }
+
+        setIdSalidaExportando(idDocumento);
+
+        try {
+            const params = new URLSearchParams({
+                idDocumento: String(idDocumento),
+                idSalida: String(idDocumento),
+                t: String(Date.now()),
+            });
+
+            const respuesta = await fetch(
+                `${API_BASE_SALIDAS}InventarioSalidasDetalle.php?${params.toString()}`,
+                {
+                    method: "GET",
+                    cache: "no-store",
+                    headers: {
+                        Accept: "application/json",
+                        "Cache-Control": "no-cache",
+                    },
+                }
+            );
+
+            const texto = await respuesta.text();
+            let resultado;
+
+            try {
+                resultado = JSON.parse(texto);
+            } catch {
+                throw new Error(texto || "El servicio devolvió una respuesta no válida.");
+            }
+
+            if (!respuesta.ok || !respuestaExitosa(resultado)) {
+                throw new Error(
+                    resultado?.mensaje ||
+                        resultado?.error ||
+                        "No fue posible consultar la salida para exportar."
+                );
+            }
+
+            const data = resultado?.data || {};
+            const documento = data?.documento || data?.salida || salida;
+            const detalles = Array.isArray(data?.detalles) ? data.detalles : [];
+
+            const totalCantidad = detalles.reduce(
+                (total, detalle) =>
+                    total +
+                    Number(
+                        detalle?.cantidad ??
+                            detalle?.cantidadSolicitada ??
+                            0
+                    ),
+                0
+            );
+
+            await ExcelInformeJornadaContratoExporter.exportar({
+                despacho: {
+                    codigo: documento?.consecutivo || `SAL-${idDocumento}`,
+                    fechaConsumoTexto: construirFechaConsumoTexto(
+                        documento?.fechaConsumoDesde,
+                        documento?.fechaConsumoHasta,
+                        documento?.tipoOrigen === "MANUAL"
+                            ? ""
+                            : documento?.fechaDocumento
+                    ),
+                },
+                exportData: {
+                    fechaElaboracion:
+                        documento?.created_at ||
+                        documento?.fechaFinalizacion ||
+                        new Date(),
+                    destino: "",
+                    productos: detalles.map((detalle, indice) => ({
+                        codigo: detalle?.codigoProducto || indice + 1,
+                        producto:
+                            detalle?.producto ||
+                            detalle?.descripcion ||
+                            "Producto",
+                        lote: detalle?.lote || "",
+                        fechaVencimiento:
+                            detalle?.fechaVencimiento || "",
+                        unidad: detalle?.unidad || "UND",
+                        cantidad: Number(
+                            detalle?.cantidad ??
+                                detalle?.cantidadSolicitada ??
+                                0
+                        ),
+                        observacionPac:
+                            detalle?.bodega || "",
+                        observacionUnd:
+                            detalle?.ubicacion || "",
+                    })),
+                    resumen: {
+                        totalCantidad: Number(
+                            documento?.totalCantidad ?? totalCantidad
+                        ),
+                    },
+                },
+            });
+
+            toast.success("Salida exportada correctamente.");
+        } catch (error) {
+            console.error("Error exportando salida:", error);
+            toast.error(error?.message || "No fue posible exportar la salida.");
+        } finally {
+            setIdSalidaExportando(null);
+        }
     };
 
     const editarSalida = (salida) => {
@@ -1065,6 +1204,34 @@ export const SalidasInventario = ({
                                                                             <FaEye />
                                                                             Ver
                                                                         </button>
+
+                                                                        {obtenerEstadoProceso(
+                                                                            salida
+                                                                        ) ===
+                                                                            "FINALIZADA" && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() =>
+                                                                                    exportarSalidaExcel(
+                                                                                        salida
+                                                                                    )
+                                                                                }
+                                                                                disabled={
+                                                                                    idSalidaExportando ===
+                                                                                    idSalida
+                                                                                }
+                                                                                className="h-10 px-4 rounded-xl border border-orange-800 bg-orange-800 text-white font-semibold flex items-center justify-center gap-2 hover:bg-orange-900 disabled:opacity-60 disabled:cursor-not-allowed transition"
+                                                                                title="Generar formato"
+                                                                            >
+                                                                                {idSalidaExportando ===
+                                                                                idSalida ? (
+                                                                                    <FaSyncAlt className="animate-spin" />
+                                                                                ) : (
+                                                                                    <FaFileInvoice />
+                                                                                )}
+                                                                                Formato
+                                                                            </button>
+                                                                        )}
 
                                                                         {editable && (
                                                                             <button

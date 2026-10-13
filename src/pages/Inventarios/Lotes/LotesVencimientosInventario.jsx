@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import { IoMenu } from "react-icons/io5";
 import {
     FaBan,
@@ -194,6 +195,14 @@ export const LotesVencimientosInventario = ({ setSidebar }) => {
         lote: null,
         nuevoEstado: null,
     });
+    const [modalCarga, setModalCarga] = useState({
+        visible: false,
+        archivo: "",
+        registros: [],
+        resultado: null,
+    });
+    const [procesandoCarga, setProcesandoCarga] = useState(false);
+    const inputCargaRef = useRef(null);
 
     const [pagina, setPagina] = useState(1);
     const [limitePagina, setLimitePagina] = useState(20);
@@ -232,6 +241,115 @@ export const LotesVencimientosInventario = ({ setSidebar }) => {
 
         return resultado;
     }, []);
+
+    const fechaExcel = (valor) => {
+        if (valor === null || valor === undefined || String(valor).trim() === "") {
+            return "";
+        }
+        if (typeof valor === "string" && /^(N\/?A|NO APLICA)$/i.test(valor.trim())) {
+            return "";
+        }
+        if (typeof valor === "number") {
+            const fecha = XLSX.SSF.parse_date_code(valor);
+            if (!fecha) return null;
+            return `${fecha.y}-${String(fecha.m).padStart(2, "0")}-${String(fecha.d).padStart(2, "0")}`;
+        }
+        const texto = String(valor).trim();
+        return /^\d{4}-\d{2}-\d{2}$/.test(texto) ? texto : null;
+    };
+
+    const cargarArchivoLotes = async (event) => {
+        const archivo = event.target.files?.[0];
+        if (!archivo) return;
+        setProcesandoCarga(true);
+        try {
+            const libro = XLSX.read(await archivo.arrayBuffer(), { type: "array", cellDates: false });
+            const filas = XLSX.utils.sheet_to_json(libro.Sheets[libro.SheetNames[0]], {
+                header: 1, defval: "", raw: true,
+            });
+            const encabezados = filas[0] || [];
+            const indiceItem = encabezados.findIndex((valor) => String(valor).trim().toUpperCase() === "ITEM");
+            const columnasLote = encabezados.reduce((resultado, valor, indice) => {
+                if (String(valor).trim().toUpperCase() === "LOTE") resultado.push(indice);
+                return resultado;
+            }, []);
+            if (indiceItem < 0 || columnasLote.length === 0) {
+                throw new Error("El archivo debe incluir ITEM y al menos una pareja de columnas LOTE / FV.");
+            }
+            const registros = [];
+            filas.slice(1).forEach((fila, indice) => {
+                const codigo = String(fila[indiceItem] ?? "").trim();
+                columnasLote.forEach((indiceLote) => {
+                    const lote = String(fila[indiceLote] ?? "").trim();
+                    const valorFecha = fila[indiceLote + 1];
+                    if (!codigo && !lote && String(valorFecha ?? "").trim() === "") return;
+                    registros.push({ fila: indice + 2, codigo, lote, fechaVencimiento: fechaExcel(valorFecha) });
+                });
+            });
+            if (!registros.length) throw new Error("No se encontraron lotes para cargar.");
+            if (registros.some((registro) => registro.fechaVencimiento === null)) {
+                throw new Error("Hay fechas con formato no reconocido. Use una fecha de Excel o N/A.");
+            }
+            const resultado = await solicitar(`${API_BASE}InventarioLotesCargaMasiva.php`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ accion: "previsualizar", registros }),
+            });
+            setModalCarga({ visible: true, archivo: archivo.name, registros, resultado: resultado.data });
+        } catch (error) {
+            toast.error(error?.message || "No fue posible leer el archivo de lotes.");
+        } finally {
+            setProcesandoCarga(false);
+            event.target.value = "";
+        }
+    };
+
+    const confirmarCargaLotes = async () => {
+        if (!modalCarga.registros.length || modalCarga.resultado?.errores?.length) return;
+        setProcesandoCarga(true);
+        try {
+            const resultado = await solicitar(`${API_BASE}InventarioLotesCargaMasiva.php`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ accion: "importar", registros: modalCarga.registros }),
+            });
+            toast.success(resultado.mensaje);
+            setModalCarga({ visible: false, archivo: "", registros: [], resultado: null });
+            cargarLotes(filtros);
+        } catch (error) {
+            toast.error(error?.message || "No fue posible crear los lotes.");
+        } finally {
+            setProcesandoCarga(false);
+        }
+    };
+
+    const descargarErroresCarga = () => {
+        const errores = modalCarga.resultado?.errores || [];
+        if (!errores.length) {
+            toast.info("No hay registros por corregir.");
+            return;
+        }
+
+        const filas = errores.map((error) => ({
+            FILA: error.fila || "",
+            ITEM: error.codigo || "",
+            LOTE: error.lote || "",
+            MOTIVO: error.motivo || "",
+        }));
+        const hoja = XLSX.utils.json_to_sheet(filas, {
+            header: ["FILA", "ITEM", "LOTE", "MOTIVO"],
+        });
+        hoja["!cols"] = [
+            { wch: 10 },
+            { wch: 18 },
+            { wch: 24 },
+            { wch: 80 },
+        ];
+        const libro = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(libro, hoja, "Registros por corregir");
+        const fecha = new Date().toISOString().slice(0, 10);
+        XLSX.writeFile(libro, `Lotes_por_corregir_${fecha}.xlsx`);
+    };
 
     const construirParametros = useCallback((valores) => {
         const params = new URLSearchParams();
@@ -349,7 +467,8 @@ export const LotesVencimientosInventario = ({ setSidebar }) => {
             modalFiltros ||
             modalDetalle.visible ||
             modalMovimientos.visible ||
-            modalConfirmacion.visible;
+            modalConfirmacion.visible ||
+            modalCarga.visible;
 
         if (!hayModal) return undefined;
 
@@ -370,6 +489,9 @@ export const LotesVencimientosInventario = ({ setSidebar }) => {
                         nuevoEstado: null,
                     });
                 }
+                if (!procesandoCarga) {
+                    setModalCarga((prev) => ({ ...prev, visible: false }));
+                }
             }
         };
 
@@ -385,7 +507,9 @@ export const LotesVencimientosInventario = ({ setSidebar }) => {
         modalDetalle.visible,
         modalMovimientos.visible,
         modalConfirmacion.visible,
+        modalCarga.visible,
         procesandoEstado,
+        procesandoCarga,
     ]);
 
     const ubicacionesFiltradas = useMemo(() => {
@@ -798,6 +922,22 @@ export const LotesVencimientosInventario = ({ setSidebar }) => {
                             </div>
 
                             <div className="flex flex-wrap items-center gap-3">
+                                <input
+                                    ref={inputCargaRef}
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={cargarArchivoLotes}
+                                    className="hidden"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => inputCargaRef.current?.click()}
+                                    disabled={procesandoCarga}
+                                    className="h-10 px-3 rounded-xl border border-blue-300 bg-blue-50 text-blue-800 text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-100 disabled:opacity-60 transition"
+                                >
+                                    <FaFileExcel />
+                                    {procesandoCarga ? "Validando..." : "Cargar lotes"}
+                                </button>
                                 <button
                                     type="button"
                                     onClick={exportarExcel}
@@ -1437,6 +1577,55 @@ export const LotesVencimientosInventario = ({ setSidebar }) => {
                     >
                         <FaFilter />
                         Aplicar filtros
+                    </button>
+                </footer>
+            </Modal>
+
+            <Modal
+                visible={modalCarga.visible}
+                onClose={() => !procesandoCarga && setModalCarga({ visible: false, archivo: "", registros: [], resultado: null })}
+                maxWidth="max-w-2xl"
+            >
+                <header className="px-5 py-4 border-b border-slate-200 flex items-start justify-between gap-4">
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-blue-700">Carga masiva</p>
+                        <h2 className="mt-1 text-lg font-bold text-slate-900">Revisar lotes antes de crear</h2>
+                        <p className="mt-1 text-sm text-slate-500">{modalCarga.archivo}</p>
+                    </div>
+                    <button type="button" onClick={() => setModalCarga({ visible: false, archivo: "", registros: [], resultado: null })} disabled={procesandoCarga} className="w-9 h-9 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50">
+                        <FaTimes />
+                    </button>
+                </header>
+                <div className="p-5 overflow-y-auto space-y-4">
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><p className="text-xs text-slate-500">Leídos</p><strong>{modalCarga.resultado?.total || 0}</strong></div>
+                        <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3"><p className="text-xs text-emerald-700">Por crear</p><strong>{modalCarga.resultado?.listos || 0}</strong></div>
+                        <div className="rounded-xl bg-amber-50 border border-amber-200 p-3"><p className="text-xs text-amber-700">Revisión</p><strong>{modalCarga.resultado?.errores?.length || 0}</strong></div>
+                    </div>
+                    <p className="text-sm text-slate-600">Los valores <strong>N/A</strong> se guardan sin fecha de vencimiento. Esta carga crea solo el catálogo de lotes; no genera existencias ni movimientos.</p>
+                    {(modalCarga.resultado?.errores || []).length > 0 && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <p className="font-semibold text-amber-900">Corrige estos registros antes de importar:</p>
+                                <button
+                                    type="button"
+                                    onClick={descargarErroresCarga}
+                                    className="h-9 px-3 rounded-xl border border-amber-300 bg-white text-amber-900 text-sm font-semibold flex items-center gap-2 hover:bg-amber-100"
+                                >
+                                    <FaFileExcel />
+                                    Descargar informe
+                                </button>
+                            </div>
+                            <ul className="mt-2 max-h-48 overflow-y-auto space-y-1 text-sm text-amber-800">
+                                {modalCarga.resultado.errores.map((error, indice) => <li key={`${error.fila}-${indice}`}>Fila {error.fila}: {error.codigo || "sin ITEM"} / {error.lote || "sin lote"} — {error.motivo}</li>)}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+                <footer className="px-5 py-4 border-t border-slate-200 bg-slate-50 flex justify-end gap-3">
+                    <button type="button" onClick={() => setModalCarga({ visible: false, archivo: "", registros: [], resultado: null })} disabled={procesandoCarga} className="h-10 px-4 rounded-xl border border-slate-300 bg-white text-sm font-semibold disabled:opacity-50">Cancelar</button>
+                    <button type="button" onClick={confirmarCargaLotes} disabled={procesandoCarga || (modalCarga.resultado?.errores?.length || 0) > 0 || !(modalCarga.resultado?.listos > 0)} className="h-10 px-4 rounded-xl bg-blue-800 text-white text-sm font-semibold disabled:opacity-50">
+                        {procesandoCarga ? "Creando..." : "Confirmar creación"}
                     </button>
                 </footer>
             </Modal>
